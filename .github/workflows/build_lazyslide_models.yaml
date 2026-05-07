@@ -1,0 +1,67 @@
+name: Build lazyslide-models
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+    paths:
+      - '.github/workflows/build_lazyslide_models.yaml'
+      - 'src/**'
+  pull_request:
+    paths:
+      - '.github/workflows/build_lazyslide_models.yaml'
+      - 'src/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Build package
+        run: uv build
+
+  publish-test-pypi:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push'
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Publish to test pypi
+        run: |
+          uv build
+          uv publish --publish-url https://test.pypi.org/legacy/ || exit 0
+
+  publish-pypi:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Publish to pypi
+        run: |
+          uv build
+          uv publish

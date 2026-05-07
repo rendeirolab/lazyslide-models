@@ -1,0 +1,87 @@
+[build-system]
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lazyslide-models"
+description = "The model zoo for LazySlide"
+readme = "README.md"
+dynamic = ["version"]
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Yimin Zheng", email = "yzheng@cemm.at" }
+]
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "numpy>=2.0.0",
+    "timm>=1.0.3",
+    "torch>=2.0.0",
+    "transformers>=4.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "hf-transfer>=0.1.9",
+    "hf-xet>=1.5.0",
+    "prek>=0.3.13",
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "pytest-xdist>=3.0",
+    "ruff>=0.15.12",
+    "taskipy>=1.14.1",
+]
+model = [
+    "einops>=0.8.1",
+    "einops-exts>=0.0.4",
+    "environs>=14.1.1",
+    "sacremoses>=0.1.1",
+    "conch",
+    "open-clip-torch>=2.32.0",
+    "transformers>=4.49.0",
+    "cellpose>=4.0.0",
+    "musk",
+    "fairscale>=0.4.13",
+    "sentencepiece>=0.2.1",
+    "diffusers>=0.36.0",
+    "accelerate>=1.12.0",
+]
+
+[tool.taskipy.tasks]
+test = "pytest tests -n 4 -v --tb=short --cov=src/lazyslide_models --cov-report=xml --cov-report=html"
+fmt = "ruff format src/lazyslide_models tests"
+
+
+[tool.pytest.ini_options]
+markers = [
+    "gated: model behind a gated HuggingFace repo",
+    "slow: large or slow-to-load model",
+]
+addopts = "-n 4"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lazyslide_models"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.hooks.version]
+path = "src/lazyslide_models/_version.py"
+template = '''
+version = "{version}"
+'''
+
+[tool.uv.sources]
+conch = { git = "https://github.com/mahmoodlab/CONCH.git" }
+musk = { git = "https://github.com/lilab-stanford/MUSK.git" }

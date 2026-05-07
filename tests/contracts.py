@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import numpy as np
 import torch
+
 from lazyslide_models.base import ModelTask
 
 # ── Shared helpers ────────────────────────────────────────────────────────────

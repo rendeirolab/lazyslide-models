@@ -15,6 +15,7 @@ from typing import NamedTuple
 
 import numpy as np
 import torch
+
 from lazyslide_models.base import ModelTask
 
 _RNG = np.random.default_rng(42)

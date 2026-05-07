@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from ._version import version
 
 __version__ = version
@@ -11,8 +12,8 @@ from . import (
     tile_prediction,
     vision,
 )
-from ._utils import hf_access
 from ._model_registry import MODEL_REGISTRY, register
+from ._utils import hf_access
 from .base import (
     ImageGenerationModel,
     ImageGenerationModelProtocol,

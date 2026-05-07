@@ -27,6 +27,7 @@ import torch
 from conftest import models_for_task
 from contracts import VALIDATOR
 from inputs import INPUT_FACTORY
+
 from lazyslide_models import MODEL_REGISTRY
 from lazyslide_models.base import ModelTask
 

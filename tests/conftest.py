@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 import torch
+
 from lazyslide_models import list_models
 from lazyslide_models._model_registry import MODEL_REGISTRY
 

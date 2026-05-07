@@ -3,6 +3,7 @@ from typing import List
 import pytest
 import torch
 from huggingface_hub.errors import GatedRepoError
+
 from lazyslide_models import MODEL_REGISTRY, ModelTask
 
 MODELS = list(MODEL_REGISTRY.keys())

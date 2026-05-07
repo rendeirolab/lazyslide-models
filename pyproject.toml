@@ -85,3 +85,10 @@ version = "{version}"
 [tool.uv.sources]
 conch = { git = "https://github.com/mahmoodlab/CONCH.git" }
 musk = { git = "https://github.com/lilab-stanford/MUSK.git" }
+
+[tool.ruff]
+lint.extend-select = ["I"]
+line-length = 88
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/export_models/*.py" = ["E402"]

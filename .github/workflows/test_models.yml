@@ -17,7 +17,7 @@ on:
 env:
   HF_HOME: /home/runner/.cache/huggingface
   # Enable fast Xet-based downloads when available
-  HF_HUB_ENABLE_HF_TRANSFER: "1"
+  HF_XET_HIGH_PERFORMANCE: "1"
   # HF_TOKEN is read natively by huggingface_hub — no login step needed
   HF_TOKEN: ${{ secrets.HF_TOKEN }}
 

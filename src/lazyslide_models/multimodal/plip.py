@@ -52,7 +52,7 @@ class PLIP(ImageTextModel):
     def encode_image(self, image):
         inputs = self.processor(images=image, return_tensors="pt")
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
-        image_features = self.model.get_image_features(**inputs)
+        image_features = self.model.get_image_features(**inputs).last_hidden_state
         # image_features = torch.nn.functional.normalize(image_features, p=2, dim=-1)
         return image_features
 
@@ -66,6 +66,6 @@ class PLIP(ImageTextModel):
             truncation=True,
         )
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
-        text_features = self.model.get_text_features(**inputs)
+        text_features = self.model.get_text_features(**inputs).last_hidden_state
         text_features = torch.nn.functional.normalize(text_features, p=2, dim=-1)
         return text_features

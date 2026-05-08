@@ -4,7 +4,7 @@ from importlib.util import find_spec
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models._utils import check_transformers_version, hf_access
+from lazyslide_models._utils import hf_access
 from lazyslide_models.base import ModelBase, ModelTask
 
 
@@ -28,8 +28,6 @@ from lazyslide_models.base import ModelBase, ModelTask
 class Prism(ModelBase):
     def __init__(self, model_path=None, token=None):
         from transformers import AutoModel
-
-        check_transformers_version("prism")
 
         environs = find_spec("environs")
         sacremoses = find_spec("sacremoses")

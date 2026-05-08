@@ -4,7 +4,6 @@ import numpy as np
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models._utils import check_transformers_version
 from lazyslide_models.base import ModelTask, TilePredictionModel
 
 SPIDER_VARIANTS = Literal[
@@ -18,8 +17,6 @@ SPIDER_VARIANTS = Literal[
 class Spider(TilePredictionModel):
     def __init__(self, variants: SPIDER_VARIANTS, model_path=None, token=None):
         from transformers import AutoModel, AutoProcessor
-
-        check_transformers_version("spider")
 
         self.model = AutoModel.from_pretrained(
             f"histai/SPIDER-{variants}-model", trust_remote_code=True, token=token

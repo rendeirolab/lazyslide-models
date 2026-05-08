@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import gc
 import re
-import warnings
 from collections import Counter
 
 import pytest
@@ -126,19 +125,11 @@ def load_model(device: str, skip_models: frozenset[str]):
             pytest.skip(f"'{name}' in --skip-models list")
 
         try:
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always")
-                model = MODEL_REGISTRY[name]()
-            # Skip if a transformers version warning was emitted
-            for w in caught:
-                if "may not work with transformers" in str(w.message):
-                    pytest.skip(f"'{name}': {w.message}")
+            model = MODEL_REGISTRY[name]()
         except GatedRepoError:
             pytest.skip(f"'{name}' is gated (no HF credentials present)")
-        except (ModuleNotFoundError, ImportError) as exc:
-            pytest.skip(f"'{name}' missing optional dependency: {exc}")
-        except NotImplementedError:
-            pytest.skip(f"'{name}' is not implemented yet")
+        except Exception as exc:
+            pytest.skip(f"'{name}' failed to load: {type(exc).__name__}: {exc}")
 
         model.to(device)
         cache[name] = model

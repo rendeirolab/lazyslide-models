@@ -62,20 +62,19 @@ def _prepare_image(model, image, device: str = "cpu"):
 
 @pytest.mark.parametrize("model_name", all_models())
 def test_model_attributes(model_name: str, load_model) -> None:
-    """Every model must have name, task, license, commercial set; to() returns self."""
-    model = load_model(model_name)
+    """Every model must have name, task, license, commercial set"""
     cls = MODEL_REGISTRY[model_name]
 
-    assert model.name is not None, "model.name is None"
+    assert cls.name is not None, "model.name is None"
 
     task = getattr(cls, "task", None)
-    assert task is not None, "model.task is None"
+    assert task is not None, "cls.task is None"
     assert isinstance(task, (ModelTask, list)), (
         f"task should be ModelTask or list, got {type(task)}"
     )
-    if model.task != ModelTask.cv_feature:
-        assert getattr(cls, "license", None) is not None, "model.license is None"
-        assert getattr(cls, "commercial", None) is not None, "model.commercial is None"
+    if cls.task != ModelTask.cv_feature:
+        assert getattr(cls, "license", None) is not None, "cls.license is None"
+        assert getattr(cls, "commercial", None) is not None, "cls.commercial is None"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

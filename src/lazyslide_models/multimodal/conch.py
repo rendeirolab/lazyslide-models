@@ -71,10 +71,22 @@ class CONCH(ImageTextModel):
         )
         return image_feature
 
-    def tokenize(self, text):
-        from conch.open_clip_custom import tokenize
+    def tokenize(self, text, *args, **kwargs):
+        import torch.nn.functional as F
 
-        return tokenize(self.tokenizer, text)
+        # Inline tokenization to avoid conch's batch_encode_plus call
+        # which was removed in transformers >= 5.0.
+        tokens = self.tokenizer(
+            text,
+            max_length=127,
+            add_special_tokens=True,
+            return_token_type_ids=False,
+            truncation=True,
+            padding="max_length",
+            return_tensors="pt",
+        )
+        tokens = F.pad(tokens["input_ids"], (0, 1), value=self.tokenizer.pad_token_id)
+        return tokens
 
     @torch.inference_mode()
     def encode_text(self, text):

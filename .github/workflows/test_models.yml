@@ -51,9 +51,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.HF_HOME }}
-          key: hf-models-${{ hashFiles('src/**/*.py') }}
-          restore-keys: |
-            hf-models-
+          key: hf-models
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
@@ -70,11 +68,11 @@ jobs:
         run: uv pip install 'transformers${{ matrix.transformers }}'
 
       - name: Show transformers version
-        run: uv run python -c "import transformers; print(f'transformers=={transformers.__version__}')"
+        run: uv run --no-sync python -c "import transformers; print(f'transformers=={transformers.__version__}')"
 
       - name: Run model tests
         run: |
-          uv run pytest tests/test_models.py \
+          uv run --no-sync pytest tests/test_models.py \
             -n 4 \
             --maxfail=3 \
             --cov=lazyslide_models \

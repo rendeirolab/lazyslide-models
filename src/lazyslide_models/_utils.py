@@ -1,6 +1,5 @@
 import inspect
 import os
-import warnings
 from contextlib import contextmanager
 from types import FrameType
 
@@ -37,28 +36,6 @@ def hf_access(name: str):
             "with a token that has access to this model. "
             "You may also pass token as an argument in LazySlide, however, this is not recommended."
         ) from e
-
-
-def check_transformers_version(model_name: str, max_version: str = "5.0") -> None:
-    """Warn if the installed ``transformers`` version is >= *max_version*.
-
-    Some upstream model repos have not yet been updated for newer
-    ``transformers`` releases.  This emits a warning so users are aware,
-    but does **not** raise — the model may still work once the provider
-    ships a fix.
-    """
-    from importlib.metadata import version
-
-    installed = version("transformers")
-    from packaging.version import Version
-
-    if Version(installed) >= Version(max_version):
-        warnings.warn(
-            f"'{model_name}' may not work with transformers >= {max_version} "
-            f"(installed: {installed}). If you encounter errors, pin with: "
-            f"pip install 'transformers<{max_version}'",
-            stacklevel=2,
-        )
 
 
 def get_default_transform(img_size=(224, 224)):

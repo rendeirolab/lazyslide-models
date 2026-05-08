@@ -78,5 +78,5 @@ class GigaPathSlideEncoder(SlideEncoderModel):
                 "Try pip install git+https://github.com/prov-gigapath/prov-gigapath"
             )
 
-    def encode_slide(self, tile_embed, coordinates):
-        return {"embedding": self.model(tile_embed, coordinates).squeeze()}
+    def encode_slide(self, embeddings, coords=None, **kwargs):
+        return {"embedding": self.model(embeddings, coords).squeeze()}

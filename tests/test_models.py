@@ -168,6 +168,7 @@ def test_encode_slide(model_name: str, load_model, device: str) -> None:
     out = model.encode_slide(
         inp.embeddings.unsqueeze(0).to(device),
         coords=inp.coords.unsqueeze(0).to(device),
+        base_tile_size=256,
     )
     VALIDATOR[ModelTask.slide_encoder](out)
 

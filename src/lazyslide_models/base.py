@@ -278,7 +278,7 @@ class SlideEncoderModel(ModelBase):
     """
 
     @abstractmethod
-    def encode_slide(self, embeddings, coords=None, *args, **kwargs) -> Dict[str, Any]:
+    def encode_slide(self, embeddings, coords=None, **kwargs) -> Dict[str, Any]:
         raise NotImplementedError
 
 

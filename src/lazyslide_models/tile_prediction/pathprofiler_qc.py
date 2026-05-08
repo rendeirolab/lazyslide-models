@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 
 from lazyslide_models._model_registry import register
@@ -43,11 +45,14 @@ class PathProfilerQC(TilePredictionModel):
 
         model_file = hf_hub_download(
             "RendeiroLab/LazySlide-models-gpl",
-            "PathProfiler/pathprofiler_patch_quality_jit.pt",
+            "PathProfiler/PathProfiler_patch_quality_exported.pt2",
         )
 
-        self.model = torch.jit.load(model_file, map_location="cpu")
-        self.model.eval()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="The given buffer is not writable"
+            )
+            self.model = torch.export.load(model_file).module()
 
     def get_transform(self):
         from torchvision.transforms import InterpolationMode
@@ -75,6 +80,7 @@ class PathProfilerQC(TilePredictionModel):
             ]
         )
 
+    @torch.inference_mode()
     def predict(self, image):
         """
         Predict the class of the input image using the PathProfiler model.
@@ -89,7 +95,7 @@ class PathProfilerQC(TilePredictionModel):
             "tissue_folding_present",
             "misc_artifacts_present",
         ]
-        with torch.inference_mode():
-            outputs = self.model(image)
-            outputs = outputs.T.detach().cpu().numpy()
-            return dict(zip(names, outputs))
+
+        outputs = self.model(image)
+        outputs = outputs.T.detach().cpu().numpy()
+        return dict(zip(names, outputs))

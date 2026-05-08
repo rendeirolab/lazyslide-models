@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 
 from lazyslide_models._model_registry import register
@@ -22,17 +24,20 @@ class CTransPath(ImageModel):
         from huggingface_hub import hf_hub_download
 
         model_file = hf_hub_download(
-            "RendeiroLab/LazySlide-models-gpl", "CTransPath/ctranspath_jit.pt"
+            "RendeiroLab/LazySlide-models-gpl", "CTransPath/CTransPath_exported.pt2"
         )
 
-        self.model = torch.jit.load(model_file, map_location="cpu")
-        self.model.eval()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="The given buffer is not writable"
+            )
+            self.model = torch.export.load(model_file).module()
 
+    @torch.inference_mode()
     def encode_image(self, image):
         """
         Encode the input image using the CTransPath model.
         The model expects a tensor of shape [B, C, H, W].
         """
-        with torch.inference_mode():
-            output = self.model(image)
-            return output
+        output = self.model(image)
+        return output

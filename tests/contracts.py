@@ -87,11 +87,11 @@ def check_tile_prediction(output) -> None:
 
 
 def check_style_transfer(output) -> None:
-    """predict → float Tensor, 3-D (C,H,W) or 4-D (B,C,H,W)."""
+    """predict → float Tensor, 2-D (B,C) or 4-D (B,C,H,W)."""
     t = _tensor(output, "StyleTransferModel.predict")
     assert t.is_floating_point(), f"style predict: expected float dtype, got {t.dtype}"
-    assert t.ndim in (3, 4), (
-        f"style predict: expected 3-D or 4-D tensor, got shape {tuple(t.shape)}"
+    assert t.ndim in (2, 4), (
+        f"style predict: expected 2-D (tile->values) or 4-D (tile->image) tensor, got shape {tuple(t.shape)}"
     )
 
 

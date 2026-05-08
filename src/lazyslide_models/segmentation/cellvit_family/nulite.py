@@ -43,11 +43,15 @@ class NuLite(SegmentationModel):
         from huggingface_hub import hf_hub_download
 
         model_file = hf_hub_download(
-            "RendeiroLab/LazySlide-models", f"nulite/NuLite_{variant}_jit.pt"
+            "RendeiroLab/LazySlide-models",
+            f"NuLite/NuLite_{variant}_exported.pt2",
         )
 
-        self.model = torch.jit.load(model_file, map_location="cpu")
-        self.model.eval()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="The given buffer is not writable"
+            )
+            self.model = torch.export.load(model_file).module()
         self.magnification = magnification
 
     def get_transform(self):
@@ -61,10 +65,9 @@ class NuLite(SegmentationModel):
             ]
         )
 
-    # @torch.inference_mode()
+    @torch.inference_mode()
     def segment(self, image):
-        with torch.inference_mode():
-            output = self.model(image)
+        output = self.model(image)
         # return output
         # postprocess the output
         flattened = [

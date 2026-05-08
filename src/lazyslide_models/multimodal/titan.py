@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 
 from lazyslide_models._model_registry import register
-from lazyslide_models._utils import hf_access
+from lazyslide_models._utils import check_transformers_version, hf_access
 from lazyslide_models.base import ImageModel, ModelTask
 
 
@@ -54,6 +54,8 @@ class Titan(
 
     def __init__(self, model_path=None, token=None):
         from transformers import AutoModel, PreTrainedTokenizerFast
+
+        check_transformers_version("titan")
 
         with hf_access(model_path):
             self.model = AutoModel.from_pretrained(

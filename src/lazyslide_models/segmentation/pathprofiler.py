@@ -1,3 +1,5 @@
+import warnings
+
 import cv2
 import numpy as np
 import torch
@@ -35,6 +37,7 @@ class CLAHE:
     bib_key="Haghighat2022-sy",
     param_size="50.3M",
     flops="44.94G",
+    input_size=448,
 )
 class PathProfilerTissueSegmentation(SegmentationModel):
     """
@@ -47,11 +50,14 @@ class PathProfilerTissueSegmentation(SegmentationModel):
 
         model_file = hf_hub_download(
             "RendeiroLab/LazySlide-models-gpl",
-            "PathProfiler/pathprofiler_tissue_seg_jit.pt",
+            "PathProfiler/PathProfiler_tissue_seg_exported.pt2",
         )
 
-        self.model = torch.jit.load(model_file, map_location="cpu")
-        self.model.eval()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="The given buffer is not writable"
+            )
+            self.model = torch.export.load(model_file).module()
 
     def get_transform(self):
         from torchvision.transforms.v2 import (
@@ -70,9 +76,9 @@ class PathProfilerTissueSegmentation(SegmentationModel):
             ]
         )
 
+    @torch.inference_mode()
     def segment(self, image):
-        with torch.inference_mode():
-            return {"probability_map": self.model(image).softmax(1)}
+        return {"probability_map": self.model(image).softmax(1)}
 
     def supported_outputs(self):
         return ("probability_map",)

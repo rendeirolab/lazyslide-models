@@ -1,3 +1,4 @@
+import warnings
 from typing import Literal
 
 import torch
@@ -48,16 +49,20 @@ class GrandQCArtifact(SegmentationModel):
         from huggingface_hub import hf_hub_download
 
         weights_map = {
-            "5x": "GrandQC_MPP2_jit.pt",
-            "7x": "GrandQC_MPP15_jit.pt",
-            "10x": "GrandQC_MPP1_jit.pt",
+            "5x": "GrandQC_MPP2_exported.pt2",
+            "7x": "GrandQC_MPP15_exported.pt2",
+            "10x": "GrandQC_MPP1_exported.pt2",
         }
-        weights = hf_hub_download(
-            "RendeiroLab/LazySlide-models", f"GrandQC/{weights_map[variant]}"
+        model_file = hf_hub_download(
+            "RendeiroLab/LazySlide-models",
+            f"GrandQC/{weights_map[variant]}",
         )
 
-        self.model = torch.jit.load(weights)
-        self.model.eval()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="The given buffer is not writable"
+            )
+            self.model = torch.export.load(model_file).module()
 
     def get_transform(self):
         import torch
@@ -76,10 +81,9 @@ class GrandQCArtifact(SegmentationModel):
             ]
         )
 
-    # @torch.inference_mode()
+    @torch.inference_mode()
     def segment(self, image):
-        with torch.inference_mode():
-            out = self.model(image)
+        out = self.model(image)
         return {"probability_map": out}
 
     def supported_outputs(self):
@@ -109,12 +113,16 @@ class GrandQCTissue(
     def __init__(self):
         from huggingface_hub import hf_hub_download
 
-        weights = hf_hub_download(
-            "RendeiroLab/LazySlide-models", "GrandQC/GrandQC_tissue_seg_jit.pt"
+        model_file = hf_hub_download(
+            "RendeiroLab/LazySlide-models",
+            "GrandQC/GrandQC_tissue_seg_exported.pt2",
         )
 
-        self.model = torch.jit.load(weights)
-        self.model.eval()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="The given buffer is not writable"
+            )
+            self.model = torch.export.load(model_file).module()
 
     @torch.inference_mode()
     def segment(self, image):

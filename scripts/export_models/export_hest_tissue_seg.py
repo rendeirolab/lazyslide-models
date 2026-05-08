@@ -20,7 +20,7 @@ checkpoint_dir.mkdir(parents=True, exist_ok=True)
 export_artifacts = workdir / "export_artifacts"
 export_artifacts.mkdir(parents=True, exist_ok=True)
 
-HEST_TISSUE_SEG_EXPORT_PATH = export_artifacts / "hest_tissue_seg_exported.pt2"
+HEST_TISSUE_SEG_EXPORT_PATH = export_artifacts / "HEST_tissue_seg_exported.pt2"
 
 # %%
 import torch

@@ -65,9 +65,17 @@ class ViTModelProtocol(ModelBaseProtocol, Protocol):
 
 @runtime_checkable
 class ImageTextModelProtocol(ImageModelProtocol, Protocol):
-    def encode_image(self, image, *args, **kwargs) -> ArrayLike: ...
-
     def encode_text(self, text, *args, **kwargs) -> ArrayLike: ...
+
+
+@runtime_checkable
+class SlideEncoderModelProtocol(ModelBaseProtocol, Protocol):
+    def encode_slide(self, embeddings, coords=None, *args, **kwargs) -> ArrayLike: ...
+
+
+@runtime_checkable
+class ZeroShotModelProtocol(ModelBaseProtocol, Protocol):
+    def score(self, embeddings, prompts, *args, **kwargs) -> ArrayLike: ...
 
 
 @runtime_checkable
@@ -84,7 +92,7 @@ class TilePredictionModelProtocol(ModelBaseProtocol, Protocol):
 
 @runtime_checkable
 class StyleTransferModelProtocol(ModelBaseProtocol, Protocol):
-    def predict(self, image): ...
+    def predict(self, image, *args, **kwargs): ...
 
     def get_channel_names(self) -> Tuple[str, ...]: ...
 

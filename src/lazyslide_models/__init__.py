@@ -5,7 +5,6 @@ from ._version import version
 __version__ = version
 
 
-# Inject shim namespace for transformers compatability
 from . import (
     image_generation,
     multimodal,
@@ -15,7 +14,7 @@ from . import (
     vision,
 )
 from ._model_registry import MODEL_REGISTRY, register
-from ._utils import ensure_transformers_compat, hf_access
+from ._utils import hf_access
 from .base import (
     ImageGenerationModel,
     ImageGenerationModelProtocol,
@@ -104,6 +103,3 @@ def list_models(task: ModelTask | str = None):
             if task in model_tasks:
                 models.append(name)
         return models
-
-
-ensure_transformers_compat()

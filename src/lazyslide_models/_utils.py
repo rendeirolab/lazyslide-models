@@ -1,30 +1,32 @@
 import inspect
 import os
-import sys
 from contextlib import contextmanager
-from types import FrameType, ModuleType
+from types import FrameType
 
 import torch
 
 
-def ensure_transformers_compat():
-    """Shim removed ``transformers`` sub-modules so that third-party remote
-    code (loaded via ``trust_remote_code=True``) does not crash on import.
+def check_transformers_version(model_name: str, max_version: str = "5.0") -> None:
+    """Warn if the installed ``transformers`` version is >= *max_version*.
 
-    ``transformers.onnx`` was removed in transformers 5.x.  Several HuggingFace
-    model repos (e.g. histai/hibou-L) still import ``OnnxConfig`` from it at
-    module level.  Injecting a lightweight stub into ``sys.modules`` lets those
-    imports succeed without vendoring the remote code.
+    Some upstream HuggingFace model repos use ``trust_remote_code=True`` with
+    code that references APIs removed in newer ``transformers`` releases.
+    This emits a warning so users are aware; the model may still work once
+    the provider ships a fix.
     """
-    if "transformers.onnx" not in sys.modules:
-        try:
-            # If the real module exists (transformers < 5), leave it alone.
-            import transformers.onnx  # noqa: F401
-        except (ImportError, ModuleNotFoundError):
-            stub = ModuleType("transformers.onnx")
-            # Provide a dummy OnnxConfig so `from transformers.onnx import OnnxConfig` works.
-            stub.OnnxConfig = type("OnnxConfig", (), {})
-            sys.modules["transformers.onnx"] = stub
+    import warnings
+    from importlib.metadata import version
+
+    from packaging.version import Version
+
+    installed = version("transformers")
+    if Version(installed) >= Version(max_version):
+        warnings.warn(
+            f"'{model_name}' may not work with transformers >= {max_version} "
+            f"(installed: {installed}). If you encounter errors, pin with: "
+            f"pip install 'transformers<{max_version}'",
+            stacklevel=2,
+        )
 
 
 def _fake_class(name, deps, inject=""):

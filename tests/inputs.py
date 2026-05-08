@@ -110,7 +110,7 @@ def make_slide_encoder(model=None) -> SlideEncoderInputs:
     xs = torch.arange(8) * 256
     ys = torch.arange(8) * 256
     gx, gy = torch.meshgrid(xs, ys, indexing="ij")
-    coords = torch.stack([gx.flatten(), gy.flatten()], dim=1).float()
+    coords = torch.stack([gx.flatten(), gy.flatten()], dim=1).long()
     return SlideEncoderInputs(embeddings, coords)
 
 

@@ -84,9 +84,27 @@ def make_segmentation(model=None) -> SegmentationInputs:
     return SegmentationInputs(_random_image(model))
 
 
+def _slide_input_dim(model) -> int:
+    """Resolve the expected input embedding dim for a slide encoder.
+
+    Slide encoders consume tile embeddings from an upstream vision encoder.
+    If the model declares ``vision_encoder``, look up that encoder's
+    ``encode_dim`` in the registry.  Otherwise fall back to the model's own
+    ``encode_dim``, then 768.
+    """
+    from lazyslide_models import MODEL_REGISTRY
+
+    vision_encoder = getattr(model, "vision_encoder", None)
+    if vision_encoder and vision_encoder in MODEL_REGISTRY:
+        dim = getattr(MODEL_REGISTRY[vision_encoder], "encode_dim", None)
+        if dim is not None:
+            return dim
+    return getattr(model, "encode_dim", None) or 768
+
+
 def make_slide_encoder(model=None) -> SlideEncoderInputs:
-    """64-patch grid; embedding dim from model.encode_dim (default 768)."""
-    D = getattr(model, "encode_dim", None) or 768
+    """64-patch grid; embedding dim resolved from upstream vision encoder."""
+    D = _slide_input_dim(model)
     N = 64
     embeddings = torch.randn(N, D)
     xs = torch.arange(8) * 256

@@ -79,4 +79,4 @@ class GigaPathSlideEncoder(SlideEncoderModel):
             )
 
     def encode_slide(self, tile_embed, coordinates):
-        return self.model(tile_embed, coordinates).squeeze()
+        return {"embedding": self.model(tile_embed, coordinates).squeeze()}

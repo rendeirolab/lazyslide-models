@@ -20,7 +20,6 @@ from lazyslide_models.base import ModelTask, SlideEncoderModel
     param_size="3.2M",
     vision_encoder="conch",
     flops="421.63M",
-    encode_dim=512,
 )
 class MadeleineSlideEncoder(SlideEncoderModel):
     def __init__(self, model_path=None, token=None):
@@ -47,4 +46,4 @@ class MadeleineSlideEncoder(SlideEncoderModel):
             # If embeddings are of shape [T, N], we need to unsqueeze to [1, T, N]
             embeddings = embeddings.unsqueeze(0)
         output = self.model(embeddings)
-        return output
+        return {"embedding": output}

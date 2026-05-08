@@ -69,12 +69,24 @@ def check_segmentation(output) -> None:
 
 
 def check_slide_encoder(output) -> None:
-    """encode_slide → float Tensor, 1-D or 2-D."""
-    t = _tensor(output, "encode_slide")
-    assert t.is_floating_point(), f"encode_slide: expected float dtype, got {t.dtype}"
-    assert t.ndim in (1, 2), (
-        f"encode_slide: expected 1-D or 2-D tensor, got shape {tuple(t.shape)}"
+    """encode_slide → dict with at least 'embedding' key containing a float Tensor."""
+    d = _dict(output, "encode_slide()")
+    assert "embedding" in d, (
+        f"encode_slide() must return a dict with 'embedding' key, got keys: {set(d.keys())}"
     )
+    t = _tensor(d["embedding"], "encode_slide()['embedding']")
+    assert t.is_floating_point(), (
+        f"encode_slide()['embedding']: expected float dtype, got {t.dtype}"
+    )
+    assert t.ndim in (1, 2), (
+        f"encode_slide()['embedding']: expected 1-D or 2-D tensor, got shape {tuple(t.shape)}"
+    )
+    # Validate any extra values are tensors
+    for key, val in d.items():
+        if key != "embedding":
+            assert isinstance(val, torch.Tensor), (
+                f"encode_slide()['{key}']: expected Tensor, got {type(val).__name__}"
+            )
 
 
 def check_tile_prediction(output) -> None:

@@ -84,4 +84,4 @@ class CHIEFSlideEncoder(SlideEncoderModel):
         for emb in embeddings:
             output = self.model(emb)
             outputs.append(output.squeeze(0))
-        return torch.stack(outputs, dim=0)
+        return {"embedding": torch.stack(outputs, dim=0)}

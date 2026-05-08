@@ -1,9 +1,30 @@
 import inspect
 import os
+import sys
 from contextlib import contextmanager
-from types import FrameType
+from types import FrameType, ModuleType
 
 import torch
+
+
+def ensure_transformers_compat():
+    """Shim removed ``transformers`` sub-modules so that third-party remote
+    code (loaded via ``trust_remote_code=True``) does not crash on import.
+
+    ``transformers.onnx`` was removed in transformers 5.x.  Several HuggingFace
+    model repos (e.g. histai/hibou-L) still import ``OnnxConfig`` from it at
+    module level.  Injecting a lightweight stub into ``sys.modules`` lets those
+    imports succeed without vendoring the remote code.
+    """
+    if "transformers.onnx" not in sys.modules:
+        try:
+            # If the real module exists (transformers < 5), leave it alone.
+            import transformers.onnx  # noqa: F401
+        except (ImportError, ModuleNotFoundError):
+            stub = ModuleType("transformers.onnx")
+            # Provide a dummy OnnxConfig so `from transformers.onnx import OnnxConfig` works.
+            stub.OnnxConfig = type("OnnxConfig", (), {})
+            sys.modules["transformers.onnx"] = stub
 
 
 def _fake_class(name, deps, inject=""):

@@ -8,11 +8,11 @@ on:
       - main
     paths:
       - '.github/workflows/test_models.yml'
-      - 'src/lazyslide-models/**'
+      - 'src/lazyslide_models/**'
   pull_request:
     paths:
       - '.github/workflows/test_models.yml'
-      - 'src/lazyslide-models/**'
+      - 'src/lazyslide_models/**'
 
 env:
   HF_HOME: /home/runner/.cache/huggingface

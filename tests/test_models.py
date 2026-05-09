@@ -23,6 +23,9 @@ pytest tests/test_models.py -k encode_image              # one capability
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import pytest
 import torch
 from conftest import all_models, models_with_method
@@ -31,6 +34,15 @@ from inputs import INPUT_FACTORY
 
 from lazyslide_models import MODEL_REGISTRY
 from lazyslide_models.base import ModelTask
+
+# ── Load references.bib keys once at import time ─────────────────────────────
+
+BIB_FILE = Path(__file__).resolve().parent.parent / "references.bib"
+BIB_KEYS: frozenset[str] = frozenset()
+if BIB_FILE.exists():
+    BIB_KEYS = frozenset(
+        re.findall(r"@\w+\{([^,]+),", BIB_FILE.read_text(encoding="utf-8"))
+    )
 
 # ── Shared image-prep helper ──────────────────────────────────────────────────
 
@@ -75,6 +87,10 @@ def test_model_attributes(model_name: str, load_model) -> None:
     if cls.task != ModelTask.cv_feature:
         assert getattr(cls, "license", None) is not None, "cls.license is None"
         assert getattr(cls, "commercial", None) is not None, "cls.commercial is None"
+
+    bib_key = getattr(cls, "bib_key", None)
+    if bib_key is not None and BIB_KEYS:
+        assert bib_key in BIB_KEYS, f"bib_key '{bib_key}' not found in references.bib"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

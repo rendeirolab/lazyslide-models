@@ -1,4 +1,6 @@
+import numpy as np
 import torch
+from PIL import Image
 
 from lazyslide_models._model_registry import register
 from lazyslide_models.base import ImageTextModel, ModelTask
@@ -30,6 +32,8 @@ class QuiltNet(ImageTextModel):
     @torch.inference_mode()
     def encode_image(self, image):
         if not isinstance(image, torch.Tensor):
+            if isinstance(image, np.ndarray):
+                image = Image.fromarray(image)
             image = self.processor(image)
         if image.dim() == 3:
             image = image.unsqueeze(0)

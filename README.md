@@ -1,6 +1,6 @@
 # LazySlide Model
 
-The model zoom for the LazySlide.
+The model zoo for [LazySlide](https://github.com/rendeirolab/LazySlide).
 
 [![Documentation Status](https://readthedocs.org/projects/lazyslide/badge/?version=stable&style=flat-square)](https://lazyslide.readthedocs.io/en/stable)
 ![pypi version](https://img.shields.io/pypi/v/lazyslide-models?color=0098FF&logo=python&logoColor=white&style=flat-square)

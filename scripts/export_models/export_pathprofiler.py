@@ -23,8 +23,8 @@ export_artifacts.mkdir(parents=True, exist_ok=True)
 TISSUE_SEG_CHECKPOINT = checkpoint_dir / "checkpoint_ts.pth"
 PATCH_QUALITY_CHECKPOINT = checkpoint_dir / "checkpoint_106.pth"
 
-TISSUE_SEG_EXPORT_PATH = export_artifacts / "pathprofiler_tissue_seg_exported.pt2"
-PATCH_QUALITY_EXPORT_PATH = export_artifacts / "pathprofiler_patch_quality_exported.pt2"
+TISSUE_SEG_EXPORT_PATH = export_artifacts / "PathProfiler_tissue_seg_exported.pt2"
+PATCH_QUALITY_EXPORT_PATH = export_artifacts / "PathProfiler_patch_quality_exported.pt2"
 
 # %%
 import gdown

@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 
 from lazyslide_models._model_registry import register
@@ -25,19 +27,23 @@ class MadeleineSlideEncoder(SlideEncoderModel):
 
         with hf_access("MahmoodLab/madeleine"):
             model_file = hf_hub_download(
-                "RendeiroLab/LazySlide-models", "MADELEINE/madeleine_jit.pt"
+                "RendeiroLab/LazySlide-models", "MADELEINE/MADELEINE_exported.pt2"
             )
 
-        self.model = torch.jit.load(model_file, map_location="cpu")
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="The given buffer is not writable"
+            )
+            self.model = torch.export.load(model_file).module()
 
+    @torch.inference_mode()
     def encode_slide(self, embeddings, coords=None, **kwargs):
         """
         Encode the slide using the Madeleine slide encoder.
         The embeddings should be a tensor of shape [B, C, H, W].
         """
-        with torch.inference_mode():
-            if len(embeddings.shape) == 2:
-                # If embeddings are of shape [T, N], we need to unsqueeze to [1, T, N]
-                embeddings = embeddings.unsqueeze(0)
-            output = self.model(embeddings)
-            return output
+        if len(embeddings.shape) == 2:
+            # If embeddings are of shape [T, N], we need to unsqueeze to [1, T, N]
+            embeddings = embeddings.unsqueeze(0)
+        output = self.model(embeddings)
+        return {"embedding": output}

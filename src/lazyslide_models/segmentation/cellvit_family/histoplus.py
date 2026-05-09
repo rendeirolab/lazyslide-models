@@ -426,9 +426,9 @@ class HistoPLUS(SegmentationModel):
             ]
         )
 
+    @torch.inference_mode()
     def segment(self, image):
-        with torch.inference_mode():
-            output = self.model(image)
+        output = self.model(image)
         # return output
         # postprocess the output
         flattened = [

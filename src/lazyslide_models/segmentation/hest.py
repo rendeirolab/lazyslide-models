@@ -1,3 +1,5 @@
+import warnings
+
 import torch
 
 from lazyslide_models._model_registry import register
@@ -25,12 +27,14 @@ class HESTTissueSegmentation(SegmentationModel):
         from huggingface_hub import hf_hub_download
 
         model_file = hf_hub_download(
-            "RendeiroLab/LazySlide-models",
-            "HEST/hest_tissue_seg_jit.pt",
+            "RendeiroLab/LazySlide-models", "HEST/HEST_tissue_seg_exported.pt2"
         )
 
-        self.model = torch.jit.load(model_file, map_location="cpu")
-        self.model.eval()
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="The given buffer is not writable"
+            )
+            self.model = torch.export.load(model_file).module()
 
     def get_transform(self):
         from torchvision.transforms.v2 import (
@@ -48,9 +52,9 @@ class HESTTissueSegmentation(SegmentationModel):
             ]
         )
 
+    @torch.inference_mode()
     def segment(self, image):
-        with torch.inference_mode():
-            return {"probability_map": self.model(image)["out"].softmax(1)}
+        return {"probability_map": self.model(image)["out"].softmax(1)}
 
     def supported_outputs(self):
         return ("probability_map",)

@@ -126,7 +126,7 @@ class Titan(
         slide_embeddings = self.model.encode_slide_from_patch_features(
             embeddings, coords, np.int64(base_tile_size)
         )
-        return slide_embeddings
+        return {"embedding": slide_embeddings}
 
     @torch.inference_mode()
     def score(

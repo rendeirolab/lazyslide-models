@@ -6,6 +6,29 @@ from types import FrameType
 import torch
 
 
+def check_transformers_version(model_name: str, max_version: str = "5.0") -> None:
+    """Warn if the installed ``transformers`` version is >= *max_version*.
+
+    Some upstream HuggingFace model repos use ``trust_remote_code=True`` with
+    code that references APIs removed in newer ``transformers`` releases.
+    This emits a warning so users are aware; the model may still work once
+    the provider ships a fix.
+    """
+    import warnings
+    from importlib.metadata import version
+
+    from packaging.version import Version
+
+    installed = version("transformers")
+    if Version(installed) >= Version(max_version):
+        warnings.warn(
+            f"'{model_name}' may not work with transformers >= {max_version} "
+            f"(installed: {installed}). If you encounter errors, pin with: "
+            f"pip install 'transformers<{max_version}'",
+            stacklevel=2,
+        )
+
+
 def _fake_class(name, deps, inject=""):
     def init(self, *args, **kwargs):
         raise ImportError(

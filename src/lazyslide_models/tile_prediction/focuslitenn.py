@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import torch
 
@@ -22,10 +24,14 @@ class FocusLiteNN(TilePredictionModel):
         from huggingface_hub import hf_hub_download
 
         model_file = hf_hub_download(
-            "RendeiroLab/LazySlide-models", "FocusLiteNN/focuslitenn_jit.pt"
+            "RendeiroLab/LazySlide-models", "FocusLiteNN/FocusLiteNN_exported.pt2"
         )
-        self.model = torch.jit.load(model_file, map_location="cpu")
-        self.model.eval()
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", message="The given buffer is not writable"
+            )
+            self.model = torch.export.load(model_file).module()
 
     def get_transform(self):
         from torchvision.transforms import InterpolationMode
@@ -48,13 +54,13 @@ class FocusLiteNN(TilePredictionModel):
             ]
         )
 
+    @torch.inference_mode()
     def predict(self, image):
         """
         Predict the focus score for the input image using the FocusLiteNN model.
         The model expects a tensor of shape [B, C, H, W].
         """
-        with torch.inference_mode():
-            output = self.model(image)
-            # Clip the output to > 0
-            output = torch.clamp(output, min=0)
-            return {"focus": np.asarray(output.squeeze(-1))}
+        output = self.model(image)
+        # Clip the output to > 0
+        output = torch.clamp(output, min=0)
+        return {"focus": np.asarray(output.squeeze(-1))}

@@ -69,7 +69,6 @@ class Instanseg(
 
     @torch.inference_mode()
     def segment(self, image):
-        # with torch.inference_mode():
         out = self.model(image)
         # Output is a tensor of B, C, H, W
         # But C is always 1, so we can squeeze it

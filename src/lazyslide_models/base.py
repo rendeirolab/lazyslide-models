@@ -65,9 +65,19 @@ class ViTModelProtocol(ModelBaseProtocol, Protocol):
 
 @runtime_checkable
 class ImageTextModelProtocol(ImageModelProtocol, Protocol):
-    def encode_image(self, image, *args, **kwargs) -> ArrayLike: ...
-
     def encode_text(self, text, *args, **kwargs) -> ArrayLike: ...
+
+
+@runtime_checkable
+class SlideEncoderModelProtocol(ModelBaseProtocol, Protocol):
+    def encode_slide(
+        self, embeddings, coords=None, *args, **kwargs
+    ) -> Dict[str, Any]: ...
+
+
+@runtime_checkable
+class ZeroShotModelProtocol(ModelBaseProtocol, Protocol):
+    def score(self, embeddings, prompts, *args, **kwargs) -> ArrayLike: ...
 
 
 @runtime_checkable
@@ -84,7 +94,7 @@ class TilePredictionModelProtocol(ModelBaseProtocol, Protocol):
 
 @runtime_checkable
 class StyleTransferModelProtocol(ModelBaseProtocol, Protocol):
-    def predict(self, image): ...
+    def predict(self, image, *args, **kwargs): ...
 
     def get_channel_names(self) -> Tuple[str, ...]: ...
 
@@ -260,8 +270,15 @@ class TimmViTModel(TimmModel):
 
 
 class SlideEncoderModel(ModelBase):
+    """Base class for slide-level encoders.
+
+    ``encode_slide`` must return a dict with at least an ``"embedding"`` key
+    containing the primary slide embedding tensor.  Models may include extra
+    keys (e.g. ``"latents"`` for captioning-ready representations).
+    """
+
     @abstractmethod
-    def encode_slide(self, embeddings, coords=None, *args, **kwargs) -> ArrayLike:
+    def encode_slide(self, embeddings, coords=None, **kwargs) -> Dict[str, Any]:
         raise NotImplementedError
 
 

@@ -42,6 +42,11 @@ class Prism(ModelBase):
         with warnings.catch_warnings(), hf_access(model_path):
             warnings.simplefilter("ignore")
 
+            # Pre-fetch the remote code so we can patch it before model init.
+            # In transformers >= 5.0, _tied_weights_keys must be a dict, but
+            # the upstream Prism repo still uses a list.
+            self._patch_tied_weights_keys(token)
+
             self.model = AutoModel.from_pretrained(
                 "paige-ai/Prism",
                 trust_remote_code=True,
@@ -50,9 +55,38 @@ class Prism(ModelBase):
             )
             self.model.eval()
 
+    @staticmethod
+    def _patch_tied_weights_keys(token=None):
+        """Patch Prism's BioGptForCausalLM for transformers >= 5.0 compatibility.
+
+        transformers 5.x changed ``_tied_weights_keys`` from a list to a dict
+        mapping tied parameter names to their source. The upstream Prism repo
+        still uses a list, which crashes during ``post_init()``.
+        """
+        try:
+            from transformers.dynamic_module_utils import get_class_from_dynamic_module
+
+            biogpt_cls = get_class_from_dynamic_module(
+                "biogpt_hf.BioGptForCausalLM",
+                "paige-ai/Prism",
+                token=token,
+            )
+            tied = getattr(biogpt_cls, "_tied_weights_keys", None)
+            if isinstance(tied, list):
+                # Convert list to dict: tied weight -> source weight
+                biogpt_cls._tied_weights_keys = {
+                    k: "biogpt.embed_tokens.weight" for k in tied
+                }
+        except Exception:
+            pass  # If patching fails, let the normal error path handle it
+
     @torch.inference_mode()
     def encode_slide(self, embeddings, coords=None, **kwargs) -> dict:
-        return self.model.slide_representations(embeddings)
+        out = self.model.slide_representations(embeddings)
+        return {
+            "embedding": out["image_embedding"],
+            "latents": out["image_latents"],
+        }
 
     @torch.inference_mode()
     def score(

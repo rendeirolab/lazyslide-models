@@ -4,6 +4,7 @@ import numpy as np
 import torch
 
 from lazyslide_models._model_registry import register
+from lazyslide_models._utils import check_transformers_version
 from lazyslide_models.base import ModelTask, TilePredictionModel
 
 SPIDER_VARIANTS = Literal[
@@ -18,6 +19,8 @@ class Spider(TilePredictionModel):
     def __init__(self, variants: SPIDER_VARIANTS, model_path=None, token=None):
         from transformers import AutoModel, AutoProcessor
 
+        check_transformers_version("spider")
+
         self.model = AutoModel.from_pretrained(
             f"histai/SPIDER-{variants}-model", trust_remote_code=True, token=token
         )
@@ -26,17 +29,17 @@ class Spider(TilePredictionModel):
             f"histai/SPIDER-{variants}-model", trust_remote_code=True, token=token
         )
 
+    @torch.inference_mode()
     def predict(self, image):
         """
         Predict the class of the input image using the SPIDER model.
         The model expects a tensor of shape [B, C, H, W].
         """
         inputs = self.processor(images=image, return_tensors="pt")
-        with torch.inference_mode():
-            outputs = self.model(**inputs)
-            predicted_class_names = outputs.predicted_class_names
-            prob = outputs.logits.softmax(-1).detach().cpu().numpy()
-            return {"class": np.asarray(predicted_class_names), "prob": prob.max(1)}
+        outputs = self.model(**inputs)
+        predicted_class_names = outputs.predicted_class_names
+        prob = outputs.logits.softmax(-1).detach().cpu().numpy()
+        return {"class": np.asarray(predicted_class_names), "prob": prob.max(1)}
 
 
 shared_info = dict(

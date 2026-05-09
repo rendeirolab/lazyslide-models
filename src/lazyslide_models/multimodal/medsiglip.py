@@ -45,16 +45,17 @@ class MedSigLip(ImageTextModel):
     def encode_image(self, image):
         inputs = self.processor(images=image, padding="max_length", return_tensors="pt")
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
-        # Get image embeddings from the model output
-        image_features = self.model.get_image_features(**inputs)
-        return image_features
+        vision_out = self.model.vision_model(pixel_values=inputs["pixel_values"])
+        return vision_out.pooler_output
 
     @torch.inference_mode()
     def encode_text(self, text):
         inputs = self.processor(text=text, padding="max_length", return_tensors="pt")
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
-        # Get text embeddings from the model output
-        text_features = self.model.get_text_features(**inputs)
-        # Normalize the features
+        text_out = self.model.text_model(
+            input_ids=inputs["input_ids"],
+            attention_mask=inputs.get("attention_mask"),
+        )
+        text_features = text_out.pooler_output
         text_features = torch.nn.functional.normalize(text_features, p=2, dim=-1)
         return text_features

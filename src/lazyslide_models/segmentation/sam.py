@@ -64,8 +64,7 @@ class SAM(SegmentationModel):
         """
         img_inputs = self.processor(image, return_tensors="pt").to(self.model.device)
 
-        with torch.inference_mode():
-            embeddings = self.model.get_image_embeddings(img_inputs["pixel_values"])
+        embeddings = self.model.get_image_embeddings(img_inputs["pixel_values"])
         if self._is_hq:
             embeddings = embeddings[0]
         return embeddings.detach().cpu()

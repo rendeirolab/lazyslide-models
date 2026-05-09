@@ -24,13 +24,17 @@ classifiers = [
 dependencies = [
     "numpy>=2.0.0",
     "timm>=1.0.3",
-    "torch>=2.0.0",
+    "torch>=2.1.0",
     "transformers>=4.0.0",
+    "pandas",
+    "opencv-python-headless",
+    "scipy",
+    "scikit-image",
+    "platformdirs"
 ]
 
 [dependency-groups]
 dev = [
-    "hf-transfer>=0.1.9",
     "hf-xet>=1.5.0",
     "prek>=0.3.13",
     "pytest>=8.0",
@@ -53,19 +57,29 @@ model = [
     "sentencepiece>=0.2.1",
     "diffusers>=0.36.0",
     "accelerate>=1.12.0",
+    "gigapath",
+    "protobuf",
 ]
 
-[tool.taskipy.tasks]
-test = "pytest tests -n 4 -v --tb=short --cov=src/lazyslide_models --cov-report=xml --cov-report=html"
-fmt = "ruff format src/lazyslide_models tests"
+[tool.uv]
+default-groups = ["dev", "model"]
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true }}]
 
+[tool.uv.sources]
+conch = { git = "https://github.com/mahmoodlab/CONCH.git" }
+musk = { git = "https://github.com/lilab-stanford/MUSK.git" }
+gigapath = { git = "https://github.com/prov-gigapath/prov-gigapath.git" }
+
+[tool.taskipy.tasks]
+test = "pytest tests -v --tb=short"
+test-ci = "pytest tests -n 4 -v --tb=short --cov=src/lazyslide_models --cov-report=xml --cov-report=html"
+fmt = "ruff format src/lazyslide_models tests"
 
 [tool.pytest.ini_options]
 markers = [
     "gated: model behind a gated HuggingFace repo",
     "slow: large or slow-to-load model",
 ]
-addopts = "-n 4"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lazyslide_models"]
@@ -81,10 +95,6 @@ path = "src/lazyslide_models/_version.py"
 template = '''
 version = "{version}"
 '''
-
-[tool.uv.sources]
-conch = { git = "https://github.com/mahmoodlab/CONCH.git" }
-musk = { git = "https://github.com/lilab-stanford/MUSK.git" }
 
 [tool.ruff]
 lint.extend-select = ["I"]

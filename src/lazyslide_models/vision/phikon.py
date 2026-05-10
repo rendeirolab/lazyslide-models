@@ -3,7 +3,7 @@ import torch
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import hf_access
-from lazyslide_models.base import ImageModel, ModelTask
+from lazyslide_models.base import DenseTokens, ImageModel, ModelTask
 
 
 @register(
@@ -37,10 +37,15 @@ class Phikon(ImageModel):
         return None
 
     @torch.inference_mode()
-    def encode_image(self, image) -> np.ndarray[np.float32]:
+    def encode_image_dense(self, image) -> DenseTokens:
         inputs = self.img_processor(images=image, return_tensors="pt")
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
-        return self.model(**inputs).last_hidden_state[:, 0, :]
+        hidden = self.model(**inputs).last_hidden_state
+        return DenseTokens(cls_token=hidden[:, 0], patch_tokens=hidden[:, 1:])
+
+    @torch.inference_mode()
+    def encode_image(self, image) -> np.ndarray[np.float32]:
+        return self.encode_image_dense(image).cls_token
 
 
 @register(
@@ -73,7 +78,12 @@ class PhikonV2(ImageModel):
         return None
 
     @torch.inference_mode()
-    def encode_image(self, image) -> np.ndarray[np.float32]:
+    def encode_image_dense(self, image) -> DenseTokens:
         inputs = self.img_processor(images=image, return_tensors="pt")
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
-        return self.model(**inputs).last_hidden_state[:, 0, :]
+        hidden = self.model(**inputs).last_hidden_state
+        return DenseTokens(cls_token=hidden[:, 0], patch_tokens=hidden[:, 1:])
+
+    @torch.inference_mode()
+    def encode_image(self, image) -> np.ndarray[np.float32]:
+        return self.encode_image_dense(image).cls_token

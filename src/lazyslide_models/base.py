@@ -7,6 +7,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    NamedTuple,
     Protocol,
     Self,
     Tuple,
@@ -35,6 +36,21 @@ class ModelTask(Enum):
     image_generation = "image_generation"
 
 
+class DenseTokens(NamedTuple):
+    """Dense output from a ViT encoder.
+
+    Attributes
+    ----------
+    cls_token : torch.Tensor
+        CLS token embedding, shape ``[B, D]``.
+    patch_tokens : torch.Tensor
+        Patch token embeddings, shape ``[B, N_patches, D]``.
+    """
+
+    cls_token: Any  # torch.Tensor [B, D]
+    patch_tokens: Any  # torch.Tensor [B, N_patches, D]
+
+
 @runtime_checkable
 class ModelBaseProtocol(Protocol):
     model: Any
@@ -58,9 +74,8 @@ class ImageModelProtocol(ModelBaseProtocol, Protocol):
 class ViTModelProtocol(ModelBaseProtocol, Protocol):
     grid_size: Tuple[int, int]
     patch_size: Tuple[int, int]
-    num_prefix_tokens: int
 
-    def encode_image_dense(self, image, *args, **kwargs) -> ArrayLike: ...
+    def encode_image_dense(self, image, *args, **kwargs) -> DenseTokens: ...
 
 
 @runtime_checkable
@@ -262,11 +277,15 @@ class TimmViTModel(TimmModel):
         self.img_size: Tuple[int, int] = patch_embed.img_size
         self.patch_size: Tuple[int, int] = patch_embed.patch_size
         self.grid_size: Tuple[int, int] = patch_embed.grid_size
-        self.num_prefix_tokens: int = self.model.num_prefix_tokens
+        self.num_prefix_tokens: int = int(self.model.num_prefix_tokens)
 
     @torch.inference_mode()
-    def encode_image_dense(self, image: torch.Tensor, *args, **kwargs) -> ArrayLike:
-        return self.model.forward_features(image)
+    def encode_image_dense(self, image: torch.Tensor, *args, **kwargs) -> DenseTokens:
+        out = self.model.forward_features(image)
+        return DenseTokens(
+            cls_token=out[:, 0],
+            patch_tokens=out[:, self.num_prefix_tokens :],
+        )
 
 
 class SlideEncoderModel(ModelBase):

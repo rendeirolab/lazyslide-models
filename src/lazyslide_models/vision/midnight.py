@@ -2,7 +2,7 @@ import torch
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import hf_access
-from lazyslide_models.base import ImageModel, ModelTask
+from lazyslide_models.base import DenseTokens, ImageModel, ModelTask
 
 
 @register(
@@ -53,16 +53,13 @@ class Midnight(ImageModel):
 
     @torch.inference_mode()
     def encode_image_dense(self, image):
-        return self.model(image).last_hidden_state
-
-    @staticmethod
-    def extract_classification_embedding(tensor):
-        cls_embedding = tensor[:, 0, :]
-        patch_embedding = tensor[:, 1:, :].mean(dim=1)
-        return torch.cat([cls_embedding, patch_embedding], dim=-1)
+        hidden = self.model(image).last_hidden_state
+        return DenseTokens(
+            cls_token=hidden[:, 0],
+            patch_tokens=hidden[:, self.num_prefix_tokens :],
+        )
 
     @torch.inference_mode()
     def encode_image(self, image):
-        output = self.model(image).last_hidden_state
-        image_feature = self.extract_classification_embedding(output)
-        return image_feature
+        dense = self.encode_image_dense(image)
+        return torch.cat([dense.cls_token, dense.patch_tokens.mean(dim=1)], dim=-1)

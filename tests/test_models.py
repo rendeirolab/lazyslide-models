@@ -23,6 +23,9 @@ pytest tests/test_models.py -k encode_image              # one capability
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import pytest
 import torch
 from conftest import all_models, models_with_method
@@ -31,6 +34,15 @@ from inputs import INPUT_FACTORY
 
 from lazyslide_models import MODEL_REGISTRY
 from lazyslide_models.base import ModelTask
+
+# ── Load references.bib keys once at import time ─────────────────────────────
+
+BIB_FILE = Path(__file__).resolve().parent.parent / "references.bib"
+BIB_KEYS: frozenset[str] = frozenset()
+if BIB_FILE.exists():
+    BIB_KEYS = frozenset(
+        re.findall(r"@\w+\{([^,]+),", BIB_FILE.read_text(encoding="utf-8"))
+    )
 
 # ── Shared image-prep helper ──────────────────────────────────────────────────
 
@@ -76,6 +88,10 @@ def test_model_attributes(model_name: str, load_model) -> None:
         assert getattr(cls, "license", None) is not None, "cls.license is None"
         assert getattr(cls, "commercial", None) is not None, "cls.commercial is None"
 
+    bib_key = getattr(cls, "bib_key", None)
+    if bib_key is not None and BIB_KEYS:
+        assert bib_key in BIB_KEYS, f"bib_key '{bib_key}' not found in references.bib"
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # encode_image — models with encode_image method
@@ -99,7 +115,9 @@ def test_encode_image(model_name: str, load_model, device: str) -> None:
 
 @pytest.mark.parametrize("model_name", models_with_method("encode_image_dense"))
 def test_encode_image_dense(model_name: str, load_model, device: str) -> None:
-    """encode_image_dense() must return a 3-D float Tensor (B, N_patches, D)."""
+    """encode_image_dense() must return a DenseTokens(cls_token, patch_tokens)."""
+    from lazyslide_models.base import DenseTokens
+
     model = load_model(model_name)
     if model.get_transform() is None:
         pytest.skip(
@@ -108,9 +126,30 @@ def test_encode_image_dense(model_name: str, load_model, device: str) -> None:
     inp = INPUT_FACTORY[ModelTask.vision](model)
     img = _prepare_image(model, inp.image, device)
     out = model.encode_image_dense(img)
-    assert isinstance(out, torch.Tensor), "encode_image_dense must return Tensor"
-    assert out.ndim == 3, f"expected (B, N, D) tensor, got shape {tuple(out.shape)}"
-    assert out.is_floating_point(), f"expected float dtype, got {out.dtype}"
+
+    assert isinstance(out, DenseTokens), (
+        f"encode_image_dense must return DenseTokens, got {type(out).__name__}"
+    )
+
+    assert isinstance(out.cls_token, torch.Tensor), "cls_token must be a Tensor"
+    assert out.cls_token.ndim == 2, (
+        f"cls_token should be (B, D), got shape {tuple(out.cls_token.shape)}"
+    )
+    assert out.cls_token.is_floating_point(), (
+        f"cls_token expected float dtype, got {out.cls_token.dtype}"
+    )
+
+    assert isinstance(out.patch_tokens, torch.Tensor), "patch_tokens must be a Tensor"
+    assert out.patch_tokens.ndim == 3, (
+        f"patch_tokens should be (B, N, D), got shape {tuple(out.patch_tokens.shape)}"
+    )
+    assert out.patch_tokens.is_floating_point(), (
+        f"patch_tokens expected float dtype, got {out.patch_tokens.dtype}"
+    )
+
+    assert out.cls_token.shape[-1] == out.patch_tokens.shape[-1], (
+        f"embedding dim mismatch: cls_token {out.cls_token.shape[-1]} vs patch_tokens {out.patch_tokens.shape[-1]}"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -2,7 +2,7 @@ import torch
 from huggingface_hub import hf_hub_download
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ImageModel, ModelTask
+from lazyslide_models.base import DenseTokens, ImageModel, ModelTask
 
 
 @register(
@@ -53,6 +53,15 @@ class GPFM(ImageModel):
                 ToDtype(dtype=torch.float32, scale=True),
                 Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             ]
+        )
+
+    @torch.inference_mode()
+    def encode_image_dense(self, image):
+        out = self.model.forward_features(image)
+        num_prefix = self.model.num_prefix_tokens
+        return DenseTokens(
+            cls_token=out[:, 0],
+            patch_tokens=out[:, num_prefix:],
         )
 
     @torch.inference_mode()

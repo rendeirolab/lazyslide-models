@@ -67,15 +67,17 @@ class GenBioPathFM(ImageModel):
 
     @torch.inference_mode()
     def encode_image_dense(self, image):
-        tokens, (h, w) = self.model.backbone.prepare_tokens(image)
-        rope = self.model.backbone.rope_embed(H=h, W=w)
-        for blk in self.model.backbone.blocks:
-            tokens = blk(tokens, rope)
-        tokens = self.model.backbone.norm(tokens)
-        return DenseTokens(
-            cls_token=tokens[:, 0],
-            patch_tokens=tokens[:, self.num_prefix_tokens :],
-        )
+        # GenBioPathFM splits RGB into 3 single-channel images and encodes each
+        b, _c, h, w = image.shape
+        features = self.model._encode(image.view(b * 3, 1, h, w))
+        # cls: [B*3, D] -> [B, 3, D] -> [B, 3*D]
+        cls = features["x_norm_clstoken"].view(b, 3, -1)
+        cls_token = torch.cat([cls[:, 0], cls[:, 1], cls[:, 2]], dim=-1)
+        # patches: [B*3, N, D] -> [B, 3, N, D] -> [B, N, 3*D]
+        patches = features["x_norm_patchtokens"]
+        n, d = patches.shape[1], patches.shape[2]
+        patches = patches.view(b, 3, n, d).permute(0, 2, 1, 3).reshape(b, n, 3 * d)
+        return DenseTokens(cls_token=cls_token, patch_tokens=patches)
 
     @torch.inference_mode()
     def encode_image(self, image):

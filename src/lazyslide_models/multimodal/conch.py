@@ -4,7 +4,7 @@ import torch
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import find_stack_level, hf_access
-from lazyslide_models.base import ImageTextModel, ModelTask
+from lazyslide_models.base import DenseTokens, ImageTextModel, ModelTask
 
 
 @register(
@@ -50,6 +50,18 @@ class CONCH(ImageTextModel):
             )
             self.model.eval()
             self.tokenizer = get_tokenizer()
+
+    @torch.inference_mode()
+    def encode_image_dense(self, image):
+        if not isinstance(image, torch.Tensor):
+            image = self.processor(image)
+        if image.dim() == 3:
+            image = image.unsqueeze(0)
+        device = next(self.model.parameters()).device
+        image = image.to(device)
+        # trunk is a timm VisionTransformer — forward_features returns [B, 1+N, D]
+        out = self.model.visual.trunk.forward_features(image)
+        return DenseTokens(cls_token=out[:, 0], patch_tokens=out[:, 1:])
 
     @torch.inference_mode()
     def encode_image(self, image):

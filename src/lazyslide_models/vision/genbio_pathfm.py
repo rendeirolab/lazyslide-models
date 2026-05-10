@@ -2,7 +2,7 @@ import torch
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import check_transformers_version
-from lazyslide_models.base import ImageModel, ModelTask
+from lazyslide_models.base import DenseTokens, ImageModel, ModelTask
 
 
 @register(
@@ -67,10 +67,16 @@ class GenBioPathFM(ImageModel):
 
     @torch.inference_mode()
     def encode_image_dense(self, image):
-        cls_features, patch_features = self.model.forward_with_patches(image)
-        # patch_features: [B, 196, 4608]
-        return patch_features
+        tokens, (h, w) = self.model.backbone.prepare_tokens(image)
+        rope = self.model.backbone.rope_embed(H=h, W=w)
+        for blk in self.model.backbone.blocks:
+            tokens = blk(tokens, rope)
+        tokens = self.model.backbone.norm(tokens)
+        return DenseTokens(
+            cls_token=tokens[:, 0],
+            patch_tokens=tokens[:, self.num_prefix_tokens :],
+        )
 
     @torch.inference_mode()
     def encode_image(self, image):
-        return self.model(image)  # [B, 4608]
+        return self.encode_image_dense(image).cls_token

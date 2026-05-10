@@ -1,7 +1,7 @@
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, TimmModel
+from lazyslide_models.base import ModelTask, TimmViTModel
 
 
 @register(
@@ -18,7 +18,7 @@ from lazyslide_models.base import ModelTask, TimmModel
     encode_dim=2560,
     flops="323.93G",
 )
-class Virchow(TimmModel):
+class Virchow(TimmViTModel):
     _hf_hub_id = "paige-ai/Virchow"
 
     def __init__(self, model_path=None, token=None):
@@ -34,12 +34,8 @@ class Virchow(TimmModel):
 
     @torch.inference_mode()
     def encode_image(self, img):
-        output = self.model(img)
-        # CLS token features (1, 768):
-        cls_features = output[:, 0]
-        # Patch token features (1, 256, 768):
-        patch_features = output[:, self.model.num_prefix_tokens :]
-        return torch.cat((cls_features, patch_features.mean(1)), dim=-1)
+        dense = self.encode_image_dense(img)
+        return torch.cat((dense.cls_token, dense.patch_tokens.mean(1)), dim=-1)
 
 
 @register(

@@ -2,7 +2,7 @@ import torch
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import check_transformers_version, hf_access
-from lazyslide_models.base import ImageModel, ModelTask
+from lazyslide_models.base import DenseTokens, ImageModel, ModelTask
 
 
 class Hibou(ImageModel):
@@ -48,6 +48,11 @@ class Hibou(ImageModel):
                 Normalize(mean=(0.7068, 0.5755, 0.722), std=(0.195, 0.2316, 0.1816)),
             ]
         )
+
+    @torch.inference_mode()
+    def encode_image_dense(self, image):
+        hidden = self.model(pixel_values=image).last_hidden_state
+        return DenseTokens(cls_token=hidden[:, 0], patch_tokens=hidden[:, 1:])
 
     @torch.inference_mode()
     def encode_image(self, image):

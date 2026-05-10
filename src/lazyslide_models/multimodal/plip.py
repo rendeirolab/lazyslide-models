@@ -5,7 +5,7 @@ import torch
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import find_stack_level, hf_access
-from lazyslide_models.base import ImageTextModel, ModelTask
+from lazyslide_models.base import DenseTokens, ImageTextModel, ModelTask
 
 
 @register(
@@ -47,6 +47,15 @@ class PLIP(ImageTextModel):
 
     def get_transform(self):
         return None
+
+    @torch.inference_mode()
+    def encode_image_dense(self, image):
+        inputs = self.processor(images=image, return_tensors="pt")
+        inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
+        hidden = self.model.vision_model(
+            pixel_values=inputs["pixel_values"]
+        ).last_hidden_state
+        return DenseTokens(cls_token=hidden[:, 0], patch_tokens=hidden[:, 1:])
 
     @torch.inference_mode()
     def encode_image(self, image):

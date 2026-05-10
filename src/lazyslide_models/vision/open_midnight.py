@@ -2,7 +2,7 @@ import torch
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import hf_access
-from lazyslide_models.base import ImageModel, ModelTask
+from lazyslide_models.base import DenseTokens, ImageModel, ModelTask
 
 
 @register(
@@ -70,7 +70,11 @@ class OpenMidnight(ImageModel):
 
     @torch.inference_mode()
     def encode_image_dense(self, image):
-        return self.model.forward_features(image)
+        out = self.model.forward_features(image)
+        return DenseTokens(
+            cls_token=out["x_norm_clstoken"],
+            patch_tokens=out["x_norm_patchtokens"],
+        )
 
     @torch.inference_mode()
     def encode_image(self, image):

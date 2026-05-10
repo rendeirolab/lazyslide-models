@@ -119,14 +119,5 @@ class H0Mini(TimmViTModel):
 
     @torch.inference_mode()
     def encode_image(self, image):
-        output = self.model(image)
-        # CLS token features (1, 768):
-        cls_features = output[:, 0]
-        # Patch token features (1, 256, 768):
-        patch_token_features = output[:, self.model.num_prefix_tokens :]
-        # Concatenate the CLS token features with the mean of the patch token
-        # features (1, 1536):
-        concatenated_features = torch.cat(
-            [cls_features, patch_token_features.mean(1)], dim=-1
-        )
-        return concatenated_features
+        dense = self.encode_image_dense(image)
+        return torch.cat([dense.cls_token, dense.patch_tokens.mean(1)], dim=-1)

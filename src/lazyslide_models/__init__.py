@@ -16,6 +16,7 @@ from . import (
 from ._model_registry import MODEL_REGISTRY, register
 from ._utils import hf_access
 from .base import (
+    DenseTokens,
     ImageGenerationModel,
     ImageGenerationModelProtocol,
     ImageModel,
@@ -47,6 +48,7 @@ __all__ = [
     "register",
     "hf_access",
     "list_models",
+    "DenseTokens",
     "ImageGenerationModel",
     "ImageGenerationModelProtocol",
     "ImageModel",

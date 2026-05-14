@@ -1,7 +1,7 @@
 import numpy as np
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, SegmentationModel
+from lazyslide_models.base import ModelTask, SegmentationModel, SegmentationOutput
 
 
 @register(
@@ -71,7 +71,4 @@ class Cellpose(SegmentationModel):
         elif masks.ndim == 2:
             # If the masks are a single image, we need to add a batch dimension
             masks = masks[np.newaxis, ...]
-        return {"instance_map": masks}
-
-    def supported_outputs(self):
-        return ("instance_map",)
+        return SegmentationOutput(instance_map=masks)

@@ -175,7 +175,7 @@ def test_encode_text(model_name: str, load_model, device: str) -> None:
 
 @pytest.mark.parametrize("model_name", models_with_method("segment"))
 def test_segment(model_name: str, load_model, device: str) -> None:
-    """segment() must return a dict with keys from the canonical set."""
+    """segment() must return a SegmentationOutput with valid fields."""
     model = load_model(model_name)
     inp = INPUT_FACTORY[ModelTask.segmentation](model)
     transform = model.get_transform()

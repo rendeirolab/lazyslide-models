@@ -3,7 +3,7 @@ import warnings
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, SegmentationModel
+from lazyslide_models.base import ModelTask, SegmentationModel, SegmentationOutput
 
 
 @register(
@@ -54,7 +54,7 @@ class HESTTissueSegmentation(SegmentationModel):
 
     @torch.inference_mode()
     def segment(self, image):
-        return {"probability_map": self.model(image)["out"].softmax(1)}
-
-    def supported_outputs(self):
-        return ("probability_map",)
+        return SegmentationOutput(
+            probability_map=self.model(image)["out"].softmax(1),
+            classes=("Background", "Tissue"),
+        )

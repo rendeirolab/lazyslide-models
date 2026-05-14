@@ -1,7 +1,7 @@
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, SegmentationModel
+from lazyslide_models.base import ModelTask, SegmentationModel, SegmentationOutput
 
 
 @register(
@@ -105,16 +105,11 @@ class SAM(SegmentationModel):
 
         inputs = inputs.to(self.model.device)
         outputs = self.model(**inputs, multimask_output=multimask_output)
-        masks = self.processor.image_processor.post_process_masks(
-            outputs.pred_masks.cpu(),
-            inputs["original_sizes"].cpu(),
-            inputs["reshaped_input_sizes"].cpu(),
-            mask_threshold=0,
+        # pred_masks shape: [B, num_prompts, num_masks, H, W]
+        # Flatten prompt and mask dims → [B, num_prompts*num_masks, H, W]
+        pred = outputs.pred_masks.cpu()
+        B = pred.shape[0]
+        prob = pred.reshape(B, -1, *pred.shape[-2:]).sigmoid()
+        return SegmentationOutput(
+            probability_map=prob,
         )
-        return {"probability_map": masks[0]}
-
-    def supported_outputs(self):
-        """
-        Returns the supported output types for the SAM model.
-        """
-        return ("probability_map",)

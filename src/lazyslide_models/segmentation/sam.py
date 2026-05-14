@@ -1,7 +1,7 @@
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, SegmentationModel
+from lazyslide_models.base import ModelTask, SegmentationModel, SegmentationOutput
 
 
 @register(
@@ -111,10 +111,6 @@ class SAM(SegmentationModel):
             inputs["reshaped_input_sizes"].cpu(),
             mask_threshold=0,
         )
-        return {"probability_map": masks[0]}
-
-    def supported_outputs(self):
-        """
-        Returns the supported output types for the SAM model.
-        """
-        return ("probability_map",)
+        return SegmentationOutput(
+            probability_map=masks[0], classes=("Background", "Foreground")
+        )

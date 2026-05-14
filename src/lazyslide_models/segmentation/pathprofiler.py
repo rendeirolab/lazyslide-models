@@ -5,7 +5,7 @@ import numpy as np
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, SegmentationModel
+from lazyslide_models.base import ModelTask, SegmentationModel, SegmentationOutput
 
 
 class CLAHE:
@@ -45,6 +45,8 @@ class PathProfilerTissueSegmentation(SegmentationModel):
     This model works at mpp=2.5 or 1.25
     """
 
+    classes = ("Background", "Tissue")
+
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
 
@@ -78,7 +80,7 @@ class PathProfilerTissueSegmentation(SegmentationModel):
 
     @torch.inference_mode()
     def segment(self, image):
-        return {"probability_map": self.model(image).softmax(1)}
-
-    def supported_outputs(self):
-        return ("probability_map",)
+        return SegmentationOutput(
+            probability_map=self.model(image).softmax(1),
+            classes=self.classes,
+        )

@@ -17,7 +17,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from lazyslide_models.base import ModelTask
+from lazyslide_models.base import ModelTask, SegmentationOutput
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -57,15 +57,66 @@ def check_multimodal(img_emb, txt_emb) -> None:
 
 
 def check_segmentation(output) -> None:
-    """segment → dict whose keys are a subset of the four canonical output keys."""
-    VALID_KEYS = {"probability_map", "instance_map", "class_map", "token_map"}
-    d = _dict(output, "segment()")
-    unexpected = set(d.keys()) - VALID_KEYS
-    assert not unexpected, f"segment() returned unexpected keys: {unexpected}"
-    for key, val in d.items():
-        assert isinstance(val, (torch.Tensor, np.ndarray)), (
-            f"segment()['{key}']: expected Tensor or ndarray, got {type(val).__name__}"
+    """segment → SegmentationOutput NamedTuple."""
+    assert isinstance(output, SegmentationOutput), (
+        f"segment(): expected SegmentationOutput, got {type(output).__name__}"
+    )
+
+    prob = output.probability_map
+    inst = output.instance_map
+    token = output.patch_token_map
+    classes = output.classes
+
+    assert prob is not None or inst is not None, (
+        "segment(): at least probability_map or instance_map must be set"
+    )
+
+    if prob is not None:
+        assert isinstance(prob, (torch.Tensor, np.ndarray)), (
+            f"segment().probability_map: expected Tensor or ndarray, got {type(prob).__name__}"
         )
+        p = torch.as_tensor(prob)
+        assert p.ndim == 4, (
+            f"segment().probability_map: expected 4-D [B, C, H, W], got shape {tuple(p.shape)}"
+        )
+        assert p.is_floating_point(), (
+            f"segment().probability_map: expected float dtype, got {p.dtype}"
+        )
+
+    if inst is not None:
+        assert isinstance(inst, (torch.Tensor, np.ndarray)), (
+            f"segment().instance_map: expected Tensor or ndarray, got {type(inst).__name__}"
+        )
+        i = torch.as_tensor(inst)
+        assert i.ndim == 3, (
+            f"segment().instance_map: expected 3-D [B, H, W], got shape {tuple(i.shape)}"
+        )
+
+    if token is not None:
+        assert isinstance(token, (torch.Tensor, np.ndarray)), (
+            f"segment().patch_token_map: expected Tensor or ndarray, got {type(token).__name__}"
+        )
+        t = torch.as_tensor(token)
+        assert t.ndim == 4, (
+            f"segment().patch_token_map: expected 4-D [B, D, H, W], got shape {tuple(t.shape)}"
+        )
+        assert t.is_floating_point(), (
+            f"segment().patch_token_map: expected float dtype, got {t.dtype}"
+        )
+
+    if classes is not None:
+        assert isinstance(classes, tuple), (
+            f"segment().classes: expected tuple, got {type(classes).__name__}"
+        )
+        assert all(isinstance(c, str) for c in classes), (
+            "segment().classes: all entries must be str"
+        )
+        if prob is not None:
+            n_channels = torch.as_tensor(prob).shape[1]
+            assert len(classes) == n_channels, (
+                f"segment().classes length ({len(classes)}) != "
+                f"probability_map channels ({n_channels})"
+            )
 
 
 def check_slide_encoder(output) -> None:

@@ -6,7 +6,7 @@ import torch
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import find_stack_level
-from lazyslide_models.base import ModelTask, SegmentationModel
+from lazyslide_models.base import ModelTask, SegmentationModel, SegmentationOutput
 from lazyslide_models.segmentation.cellvit_family.postprocess import np_hv_postprocess
 
 
@@ -34,6 +34,15 @@ class NuLite(SegmentationModel):
     - 5: Epithelial
 
     """
+
+    classes = (
+        "Background",
+        "Neoplastic",
+        "Inflammatory",
+        "Connective",
+        "Dead",
+        "Epithelial",
+    )
 
     def __init__(
         self,
@@ -68,7 +77,7 @@ class NuLite(SegmentationModel):
     @torch.inference_mode()
     def segment(self, image):
         output = self.model(image)
-        # return output
+        patch_token_map = output.pop("patch_token_map")
         # postprocess the output
         flattened = [
             dict(zip(output.keys(), values)) for values in zip(*output.values())
@@ -77,7 +86,6 @@ class NuLite(SegmentationModel):
         instances_maps = []
         prob_maps = []
         for batch in flattened:
-            # instance_map = nulite_preprocess(batch)  # Numpy array
             instance_map = np_hv_postprocess(
                 batch["nuclei_binary_map"].softmax(0).detach().cpu().numpy()[1],
                 batch["hv_map"].detach().cpu().numpy(),
@@ -89,24 +97,12 @@ class NuLite(SegmentationModel):
             instances_maps.append(instance_map)
             prob_maps.append(prob_map)
 
-        return {
-            "instance_map": np.array(instances_maps),
-            "class_map": np.array(prob_maps),
-        }
-
-    def supported_outputs(self):
-        return ["instance_map", "class_map"]
-
-    @staticmethod
-    def get_classes():
-        return {
-            0: "Background",
-            1: "Neoplastic",
-            2: "Inflammatory",
-            3: "Connective",
-            4: "Dead",
-            5: "Epithelial",
-        }
+        return SegmentationOutput(
+            instance_map=np.array(instances_maps),
+            probability_map=np.array(prob_maps),
+            patch_token_map=patch_token_map,
+            classes=self.classes,
+        )
 
     @classmethod
     def check_input_tile(cls, tile_spec) -> bool:

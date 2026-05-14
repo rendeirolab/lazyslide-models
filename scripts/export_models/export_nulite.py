@@ -248,6 +248,7 @@ class NuLite(nn.Module):
                 * nuclei_binary_map: Raw binary cell segmentation predictions. Shape: (B, 2, H, W)
                 * hv_map: Binary HV Map predictions. Shape: (B, 2, H, W)
                 * nuclei_type_map: Raw binary nuclei type predictions. Shape: (B, num_nuclei_classes, H, W)
+                * patch_token_map: Last encoder stage features. Shape: (B, D, H', W')
         """
         out_dict: Dict[str, torch.Tensor] = {}
 
@@ -263,6 +264,7 @@ class NuLite(nn.Module):
         out_dict["nuclei_binary_map"] = self.np_head(xt)
         out_dict["hv_map"] = self.hv_head(xt)
         out_dict["nuclei_type_map"] = self.tp_head(xt)
+        out_dict["patch_token_map"] = z4
 
         return out_dict
 

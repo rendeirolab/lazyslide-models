@@ -4,7 +4,7 @@ from typing import Literal
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, SegmentationModel
+from lazyslide_models.base import ModelTask, SegmentationModel, SegmentationOutput
 
 
 @register(
@@ -34,16 +34,16 @@ class GrandQCArtifact(SegmentationModel):
 
     """
 
-    CLASS_MAPPING = {
-        0: "Background",
-        1: "Normal Tissue",
-        2: "Fold",
-        3: "Darkspot & Foreign Object",
-        4: "PenMarking",
-        5: "Edge & Air Bubble",
-        6: "Out of Focus",
-        7: "Background",
-    }
+    classes = (
+        "Background",
+        "Normal Tissue",
+        "Fold",
+        "Darkspot & Foreign Object",
+        "PenMarking",
+        "Edge & Air Bubble",
+        "Out of Focus",
+        "Background",
+    )
 
     def __init__(self, variant: Literal["5x", "7x", "10x"] = "7x"):
         from huggingface_hub import hf_hub_download
@@ -84,10 +84,7 @@ class GrandQCArtifact(SegmentationModel):
     @torch.inference_mode()
     def segment(self, image):
         out = self.model(image)
-        return {"probability_map": out}
-
-    def supported_outputs(self):
-        return ("probability_map",)
+        return SegmentationOutput(probability_map=out, classes=self.classes)
 
 
 @register(
@@ -105,10 +102,7 @@ class GrandQCArtifact(SegmentationModel):
 class GrandQCTissue(
     SegmentationModel,
 ):
-    CLASS_MAPPING = {
-        0: "Background",
-        1: "Tissue",
-    }
+    classes = ("Background", "Tissue")
 
     def __init__(self):
         from huggingface_hub import hf_hub_download
@@ -126,7 +120,7 @@ class GrandQCTissue(
 
     @torch.inference_mode()
     def segment(self, image):
-        return {"probability_map": self.model(image).softmax(dim=1)}
-
-    def supported_outputs(self):
-        return ("probability_map",)
+        return SegmentationOutput(
+            probability_map=self.model(image).softmax(dim=1),
+            classes=self.classes,
+        )

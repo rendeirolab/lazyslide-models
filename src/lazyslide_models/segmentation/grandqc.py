@@ -23,19 +23,19 @@ class GrandQCArtifact(SegmentationModel):
     """
     The output classes are:
 
-    - 0: Background
+    - 0: Unannotated (unlabeled regions in the training dataset)
     - 1: Normal Tissue
     - 2: Fold
     - 3: Darkspot & Foreign Object
     - 4: PenMarking
     - 5: Edge & Air Bubble
     - 6: Out of Focus
-    - 7: Background
+    - 7: Background (explicitly annotated background tissue)
 
     """
 
     classes = (
-        "Background",
+        "Unannotated",
         "Normal Tissue",
         "Fold",
         "Darkspot & Foreign Object",

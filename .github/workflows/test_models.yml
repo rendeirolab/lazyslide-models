@@ -25,8 +25,10 @@ jobs:
   test-models:
     name: Test models (transformers ${{ matrix.transformers }})
     runs-on: linux-cpu8-300g
+    timeout-minutes: 90
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         transformers: ["<5.0", ">=5.0"]
     steps:
@@ -51,7 +53,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.HF_HOME }}
-          key: hf-models
+          key: hf-models-${{ matrix.transformers == '<5.0' && 'transformers4' || 'transformers5' }}
+          restore-keys: |
+            hf-models-${{ matrix.transformers == '<5.0' && 'transformers4' || 'transformers5' }}-
+            hf-models-
+
+      - name: Cache and disk check
+        run: |
+          du -sh "${HF_HOME}" 2>/dev/null || echo "HF cache empty/missing"
+          df -h /home/runner
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v5

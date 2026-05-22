@@ -1,9 +1,12 @@
-import numpy as np
 import torch
-from PIL import Image
 
 from lazyslide_models._model_registry import register
 from lazyslide_models.base import DenseTokens, ImageTextModel, ModelTask
+
+# CLIP/OpenAI normalization stats — shared by all QuiltNet variants
+_CLIP_MEAN = (0.48145466, 0.4578275, 0.40821073)
+_CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
+_CLIP_SIZE = 224
 
 
 class QuiltNet(ImageTextModel):
@@ -20,44 +23,62 @@ class QuiltNet(ImageTextModel):
                 "`pip install open_clip_torch`."
             )
 
-        self.model, self.processor = create_model_from_pretrained(
-            f"hf-hub:{self._hf_hub_id}"
-        )
+        self.model, _ = create_model_from_pretrained(f"hf-hub:{self._hf_hub_id}")
         self.model.eval()
         self.tokenizer = get_tokenizer(f"hf-hub:{self._hf_hub_id}")
 
     def get_transform(self):
-        return None
+        from torchvision.transforms.v2 import (
+            CenterCrop,
+            Compose,
+            InterpolationMode,
+            Normalize,
+            Resize,
+            ToDtype,
+            ToImage,
+        )
 
-    def _prepare_image(self, image):
-        if not isinstance(image, torch.Tensor):
-            if isinstance(image, np.ndarray):
-                image = Image.fromarray(image)
-            image = self.processor(image)
-        if image.dim() == 3:
-            image = image.unsqueeze(0)
-        device = next(self.model.parameters()).device
-        return image.to(device)
+        return Compose(
+            [
+                ToImage(),
+                Resize(
+                    _CLIP_SIZE,
+                    interpolation=InterpolationMode.BICUBIC,
+                    antialias=True,
+                ),
+                CenterCrop(_CLIP_SIZE),
+                ToDtype(dtype=torch.float32, scale=True),
+                Normalize(mean=_CLIP_MEAN, std=_CLIP_STD),
+            ]
+        )
 
     @torch.inference_mode()
     def encode_image_dense(self, image):
-        image = self._prepare_image(image)
         visual = self.model.visual
-        x = visual._embeds(image)
-        x = visual.transformer(x)
-        x = visual.ln_post(x)
-        return DenseTokens(cls_token=x[:, 0], patch_tokens=x[:, 1:])
+
+        if hasattr(visual, "trunk"):
+            # TimmModel backend (e.g. QuiltNet-B-16-PMB)
+            trunk = visual.trunk
+            x = trunk.forward_features(image)
+            n = trunk.num_prefix_tokens
+        else:
+            # open_clip VisionTransformer backend
+            x = visual._embeds(image)
+            x = visual.transformer(x)
+            x = visual.ln_post(x)
+            n = 1
+
+        return DenseTokens(cls_token=x[:, 0], patch_tokens=x[:, n:])
 
     @torch.inference_mode()
     def encode_image(self, image):
-        image = self._prepare_image(image)
         return self.model.encode_image(image, normalize=False)
 
     @torch.inference_mode()
     def encode_text(self, text):
         device = next(self.model.parameters()).device
         tokens = self.tokenizer(text).to(device)
-        return self.model.encode_text(tokens, normalize=False)
+        return self.model.encode_text(tokens, normalize=True)
 
 
 shared_info = dict(

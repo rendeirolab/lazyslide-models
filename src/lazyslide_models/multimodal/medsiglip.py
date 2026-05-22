@@ -2,7 +2,7 @@ import torch
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import hf_access
-from lazyslide_models.base import ImageTextModel, ModelTask
+from lazyslide_models.base import ImageTextModel, InputConstraint, ModelTask
 
 
 @register(
@@ -19,7 +19,7 @@ from lazyslide_models.base import ImageTextModel, ModelTask
     bib_key="Sellergren2025-qq",
     encode_dim=1152,
     param_size="878M",
-    input_size=448,
+    input_constraint=InputConstraint(min=448),
 )
 class MedSigLip(ImageTextModel):
     def __init__(self, model_path=None, token=None):

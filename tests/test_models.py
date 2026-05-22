@@ -6,6 +6,10 @@ Tests are parametrised by **which methods a model class exposes** (via
 registry automatically includes it in every test whose required method it
 implements — no changes to this file required.
 
+Each image-consuming method also has a ``_sizes`` variant that feeds the
+model images at 224, 256, 448 and 512 to verify the transform handles
+non-native spatial sizes correctly.
+
 Device is configured via ``--device`` CLI flag (default: cpu).
 Gated models carry the ``gated`` mark so they can be filtered with
 ``-m 'not gated'``.
@@ -19,6 +23,7 @@ pytest tests/test_models.py --device=mps                 # Apple Silicon
 pytest tests/test_models.py -k uni                       # single model
 pytest tests/test_models.py --skip-models=histoplus,sam  # manual exclusions
 pytest tests/test_models.py -k encode_image              # one capability
+pytest tests/test_models.py -k "sizes and 512"           # multi-size at 512
 """
 
 from __future__ import annotations
@@ -28,12 +33,12 @@ from pathlib import Path
 
 import pytest
 import torch
-from conftest import all_models, models_with_method
+from conftest import all_models, models_with_method, models_with_method_x_size
 from contracts import VALIDATOR
 from inputs import INPUT_FACTORY
 
 from lazyslide_models import MODEL_REGISTRY
-from lazyslide_models.base import ModelTask
+from lazyslide_models.base import DenseTokens, ModelTask
 
 # ── Load references.bib keys once at import time ─────────────────────────────
 
@@ -44,7 +49,7 @@ if BIB_FILE.exists():
         re.findall(r"@\w+\{([^,]+),", BIB_FILE.read_text(encoding="utf-8"))
     )
 
-# ── Shared image-prep helper ──────────────────────────────────────────────────
+# ── Shared image-prep helper ────────────────────────────────────────────────
 
 
 def _prepare_image(model, image, device: str = "cpu"):
@@ -108,6 +113,20 @@ def test_encode_image(model_name: str, load_model, device: str) -> None:
     VALIDATOR[ModelTask.vision](out)
 
 
+@pytest.mark.parametrize(
+    "model_name, image_size", models_with_method_x_size("encode_image")
+)
+def test_encode_image_sizes(
+    model_name: str, image_size: int, load_model, device: str
+) -> None:
+    """encode_image() must return (B, D) float Tensor for various input sizes."""
+    model = load_model(model_name)
+    inp = INPUT_FACTORY[ModelTask.vision](model, size=image_size)
+    img = _prepare_image(model, inp.image, device)
+    out = model.encode_image(img)
+    VALIDATOR[ModelTask.vision](out)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # encode_image_dense — ViT models that expose patch-level features
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -116,17 +135,31 @@ def test_encode_image(model_name: str, load_model, device: str) -> None:
 @pytest.mark.parametrize("model_name", models_with_method("encode_image_dense"))
 def test_encode_image_dense(model_name: str, load_model, device: str) -> None:
     """encode_image_dense() must return a DenseTokens(cls_token, patch_tokens)."""
-    from lazyslide_models.base import DenseTokens
-
     model = load_model(model_name)
-    if model.get_transform() is None:
-        pytest.skip(
-            "model uses internal processor; encode_image_dense not testable via raw image"
-        )
     inp = INPUT_FACTORY[ModelTask.vision](model)
     img = _prepare_image(model, inp.image, device)
     out = model.encode_image_dense(img)
 
+    _assert_dense_tokens(out)
+
+
+@pytest.mark.parametrize(
+    "model_name, image_size", models_with_method_x_size("encode_image_dense")
+)
+def test_encode_image_dense_sizes(
+    model_name: str, image_size: int, load_model, device: str
+) -> None:
+    """encode_image_dense() must return DenseTokens for various input sizes."""
+    model = load_model(model_name)
+    inp = INPUT_FACTORY[ModelTask.vision](model, size=image_size)
+    img = _prepare_image(model, inp.image, device)
+    out = model.encode_image_dense(img)
+
+    _assert_dense_tokens(out)
+
+
+def _assert_dense_tokens(out) -> None:
+    """Shared assertions for DenseTokens output."""
     assert isinstance(out, DenseTokens), (
         f"encode_image_dense must return DenseTokens, got {type(out).__name__}"
     )
@@ -148,7 +181,8 @@ def test_encode_image_dense(model_name: str, load_model, device: str) -> None:
     )
 
     assert out.cls_token.shape[-1] == out.patch_tokens.shape[-1], (
-        f"embedding dim mismatch: cls_token {out.cls_token.shape[-1]} vs patch_tokens {out.patch_tokens.shape[-1]}"
+        f"embedding dim mismatch: cls_token {out.cls_token.shape[-1]} "
+        f"vs patch_tokens {out.patch_tokens.shape[-1]}"
     )
 
 
@@ -168,9 +202,38 @@ def test_encode_text(model_name: str, load_model, device: str) -> None:
     VALIDATOR[ModelTask.multimodal](img_emb, txt_emb)
 
 
+@pytest.mark.parametrize(
+    "model_name, image_size", models_with_method_x_size("encode_text")
+)
+def test_encode_text_sizes(
+    model_name: str, image_size: int, load_model, device: str
+) -> None:
+    """encode_image + encode_text must match (B, D) for various input sizes."""
+    model = load_model(model_name)
+    inp = INPUT_FACTORY[ModelTask.multimodal](model, size=image_size)
+    img = _prepare_image(model, inp.image, device)
+    img_emb = model.encode_image(img)
+    txt_emb = model.encode_text(inp.texts)
+    VALIDATOR[ModelTask.multimodal](img_emb, txt_emb)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # segment — models with segment method
 # ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _prepare_segment_image(model, image, device: str = "cpu"):
+    """Prepare image for segmentation models."""
+    transform = model.get_transform()
+    if transform is not None:
+        img = transform(image)
+        if img.ndim == 3:
+            img = img.unsqueeze(0)
+    else:
+        img = torch.from_numpy(image).unsqueeze(0)  # keep uint8 for models that want it
+    if isinstance(img, torch.Tensor):
+        img = img.to(device)
+    return img
 
 
 @pytest.mark.parametrize("model_name", models_with_method("segment"))
@@ -178,17 +241,19 @@ def test_segment(model_name: str, load_model, device: str) -> None:
     """segment() must return a dict with keys from the canonical set."""
     model = load_model(model_name)
     inp = INPUT_FACTORY[ModelTask.segmentation](model)
-    transform = model.get_transform()
-    if transform is not None:
-        img = transform(inp.image)
-        if img.ndim == 3:
-            img = img.unsqueeze(0)
-    else:
-        img = torch.from_numpy(inp.image).unsqueeze(
-            0
-        )  # keep uint8 for models that want it
-    if isinstance(img, torch.Tensor):
-        img = img.to(device)
+    img = _prepare_segment_image(model, inp.image, device)
+    out = model.segment(img)
+    VALIDATOR[ModelTask.segmentation](out)
+
+
+@pytest.mark.parametrize("model_name, image_size", models_with_method_x_size("segment"))
+def test_segment_sizes(
+    model_name: str, image_size: int, load_model, device: str
+) -> None:
+    """segment() must return a dict with canonical keys for various input sizes."""
+    model = load_model(model_name)
+    inp = INPUT_FACTORY[ModelTask.segmentation](model, size=image_size)
+    img = _prepare_segment_image(model, inp.image, device)
     out = model.segment(img)
     VALIDATOR[ModelTask.segmentation](out)
 
@@ -230,6 +295,34 @@ def _predict_models() -> list[pytest.param]:
     return params
 
 
+def _predict_models_x_size() -> list[pytest.param]:
+    """_predict_models() × per-model sizes (respects input_constraint)."""
+    from conftest import _sizes_for_model
+
+    params = []
+    for mp in _predict_models():
+        name = mp.values[0]
+        marks = list(mp.marks)
+        cls = MODEL_REGISTRY[name]
+        for size in _sizes_for_model(cls):
+            params.append(pytest.param(name, size, marks=marks, id=f"{name}-{size}"))
+    return params
+
+
+def _prepare_predict_image(model, image, device: str = "cpu"):
+    """Prepare image for tile prediction models."""
+    transform = model.get_transform()
+    if transform is not None:
+        img = transform(image)
+        if isinstance(img, torch.Tensor) and img.ndim == 3:
+            img = img.unsqueeze(0)
+    else:
+        img = image  # cv_feature models accept raw numpy
+    if isinstance(img, torch.Tensor):
+        img = img.to(device)
+    return img
+
+
 @pytest.mark.parametrize("model_name", _predict_models())
 def test_predict(model_name: str, load_model, device: str) -> None:
     """predict() must return a dict of numpy arrays."""
@@ -238,15 +331,21 @@ def test_predict(model_name: str, load_model, device: str) -> None:
     raw_task = MODEL_REGISTRY[model_name].task
     task = raw_task[0] if isinstance(raw_task, list) else raw_task
     inp = INPUT_FACTORY[task](model)
-    transform = model.get_transform()
-    if transform is not None:
-        img = transform(inp.image)
-        if isinstance(img, torch.Tensor) and img.ndim == 3:
-            img = img.unsqueeze(0)
-    else:
-        img = inp.image  # cv_feature models accept raw numpy
-    if isinstance(img, torch.Tensor):
-        img = img.to(device)
+    img = _prepare_predict_image(model, inp.image, device)
+    out = model.predict(img)
+    VALIDATOR[task](out)
+
+
+@pytest.mark.parametrize("model_name, image_size", _predict_models_x_size())
+def test_predict_sizes(
+    model_name: str, image_size: int, load_model, device: str
+) -> None:
+    """predict() must return a dict of numpy arrays for various input sizes."""
+    model = load_model(model_name)
+    raw_task = MODEL_REGISTRY[model_name].task
+    task = raw_task[0] if isinstance(raw_task, list) else raw_task
+    inp = INPUT_FACTORY[task](model, size=image_size)
+    img = _prepare_predict_image(model, inp.image, device)
     out = model.predict(img)
     VALIDATOR[task](out)
 
@@ -263,6 +362,22 @@ def test_style_transfer(model_name: str, load_model, device: str) -> None:
     """predict() must return a float Tensor, 3-D or 4-D."""
     model = load_model(model_name)
     inp = INPUT_FACTORY[ModelTask.style_transfer](model)
+    img = _prepare_image(model, inp.image, device)
+    with torch.inference_mode():
+        out = model.predict(img)
+    VALIDATOR[ModelTask.style_transfer](out)
+
+
+@pytest.mark.parametrize(
+    "model_name, image_size",
+    models_with_method_x_size("predict", "get_channel_names"),
+)
+def test_style_transfer_sizes(
+    model_name: str, image_size: int, load_model, device: str
+) -> None:
+    """predict() for style transfer must return float Tensor for various input sizes."""
+    model = load_model(model_name)
+    inp = INPUT_FACTORY[ModelTask.style_transfer](model, size=image_size)
     img = _prepare_image(model, inp.image, device)
     with torch.inference_mode():
         out = model.predict(img)

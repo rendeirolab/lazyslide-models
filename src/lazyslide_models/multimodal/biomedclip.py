@@ -53,12 +53,11 @@ class BiomedCLIP(ImageTextModel):
     @torch.inference_mode()
     def encode_image_dense(self, image):
         image = self._prepare_image(image)
-        visual = self.model.visual
-        # Get all tokens before pooling/projection
-        x = visual._embeds(image)
-        x = visual.transformer(x)
-        x = visual.ln_post(x)
-        return DenseTokens(cls_token=x[:, 0], patch_tokens=x[:, 1:])
+        trunk = self.model.visual.trunk
+        # forward_features returns all tokens (CLS + patches) before the head
+        x = trunk.forward_features(image)
+        n = trunk.num_prefix_tokens  # typically 1 (CLS)
+        return DenseTokens(cls_token=x[:, 0], patch_tokens=x[:, n:])
 
     @torch.inference_mode()
     def encode_image(self, image):

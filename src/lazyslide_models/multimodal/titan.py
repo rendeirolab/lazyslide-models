@@ -117,7 +117,7 @@ class Titan(
         except Exception:
             device = torch.device("cpu")
         encode_texts = tokens.to(device)
-        text_feature = self.model.encode_text(encode_texts)
+        text_feature = self.model.encode_text(encode_texts, normalize=True)
         return text_feature
 
     @torch.inference_mode()

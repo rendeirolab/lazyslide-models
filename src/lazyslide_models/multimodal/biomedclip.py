@@ -68,5 +68,5 @@ class BiomedCLIP(ImageTextModel):
     def encode_text(self, text):
         device = next(self.model.parameters()).device
         tokens = self.tokenizer(text, context_length=self._context_length).to(device)
-        text_features = self.model.encode_text(tokens, normalize=False)
+        text_features = self.model.encode_text(tokens, normalize=True)
         return text_features

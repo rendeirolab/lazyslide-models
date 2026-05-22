@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import hf_access
-from lazyslide_models.base import ImageModel, ModelTask
+from lazyslide_models.base import ImageModel, InputConstraint, ModelTask
 
 
 @register(
@@ -21,7 +21,7 @@ from lazyslide_models.base import ImageModel, ModelTask
     param_size="158.9M",
     encode_dim=768,
     vision_encoder="titan",
-    input_size=448,
+    input_constraint=InputConstraint(min=448),
 )
 class Titan(
     ImageModel,
@@ -117,7 +117,7 @@ class Titan(
         except Exception:
             device = torch.device("cpu")
         encode_texts = tokens.to(device)
-        text_feature = self.model.encode_text(encode_texts)
+        text_feature = self.model.encode_text(encode_texts, normalize=True)
         return text_feature
 
     @torch.inference_mode()

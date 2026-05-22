@@ -110,5 +110,5 @@ class CONCH(ImageTextModel):
         except Exception:
             device = torch.device("cpu")
         encode_texts = encode_texts.to(device)
-        text_feature = self.model.encode_text(encode_texts)
+        text_feature = self.model.encode_text(encode_texts, normalize=True)
         return text_feature

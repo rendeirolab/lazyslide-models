@@ -9,6 +9,7 @@ import pandas as pd
 
 from lazyslide_models._repr import model_doc, model_registry_repr_html
 from lazyslide_models._utils import find_stack_level
+from lazyslide_models.base import InputConstraint
 
 if TYPE_CHECKING:
     from .base import ModelBase, ModelTask
@@ -126,7 +127,7 @@ def register(
     encode_dim: int | None = None,
     vision_encoder: str | None = None,
     flops: int | str | None = None,
-    input_size: int | None = None,
+    input_constraint: InputConstraint | None = None,
     **information,
 ):
     """Register a model class with additional information."""
@@ -158,11 +159,15 @@ def register(
         cls.encode_dim = encode_dim
         cls.vision_encoder = vision_encoder
         cls.flops = flops
-        cls.input_size = input_size
+        cls.input_constraint = input_constraint
 
         # Set any additional information
         for info_key, info_value in information.items():
             setattr(cls, info_key, info_value)
+
+        # Remember the keys this class was registered under so the doc/HTML
+        # card can display them (this is what users pass to lazyslide funcs).
+        cls._registry_keys = keys
 
         old_doc = cls.__doc__
         if old_doc is None:

@@ -33,11 +33,35 @@ _MODEL_NAME_RE = re.compile(r"\[([^\]]+)\]")
 # Tracks how many remaining tests need each model (for eviction).
 _model_remaining: Counter[str] = Counter()
 
+# Image sizes used by multi-size transform tests.
+IMAGE_SIZES: list[int] = [224, 256, 448, 512]
+
+
+_SIZE_SUFFIX_RE = re.compile(r"-(\d+)$")
+
 
 def _extract_model_name(nodeid: str) -> str | None:
-    """Extract model name from parametrized test node id like ``test_foo[plip]``."""
+    """Extract model name from parametrized test node id.
+
+    Handles both ``test_foo[plip]`` and ``test_foo[plip-224]`` (multi-size).
+    The trailing ``-<digits>`` suffix is stripped only when the remaining
+    prefix is itself a registered model name, avoiding false positives for
+    models whose names end in digits (e.g. ``virchow2``).
+    """
     m = _MODEL_NAME_RE.search(nodeid)
-    return m.group(1) if m else None
+    if m is None:
+        return None
+    raw = m.group(1)
+    # Fast path — exact match (most tests)
+    if raw in MODEL_REGISTRY:
+        return raw
+    # Try stripping a ``-<size>`` suffix
+    sm = _SIZE_SUFFIX_RE.search(raw)
+    if sm:
+        prefix = raw[: sm.start()]
+        if prefix in MODEL_REGISTRY:
+            return prefix
+    return raw
 
 
 def _model_sort_key(item: pytest.Item) -> tuple[int, str, str]:
@@ -224,4 +248,45 @@ def all_models() -> list[pytest.param]:
             continue
         seen_cls.add(id(cls))
         params.append(pytest.param(name, marks=_gated_marks(cls), id=name))
+    return params
+
+
+def _sizes_for_model(cls) -> list[int]:
+    """Return the image sizes a model should be tested with.
+
+    Uses ``cls.input_constraint`` (an ``InputConstraint``) when available to
+    filter ``IMAGE_SIZES`` down to only valid entries.  Falls back to all
+    ``IMAGE_SIZES`` when no constraint is declared.
+    """
+    constraint = getattr(cls, "input_constraint", None)
+    if constraint is None:
+        return list(IMAGE_SIZES)
+    valid = constraint.filter_sizes(IMAGE_SIZES)
+    if not valid:
+        # Nothing in IMAGE_SIZES satisfies the constraint — test the default
+        return [constraint.default_size]
+    # Include the native min size only when it satisfies the full constraint
+    if constraint.min is not None and constraint.min not in valid:
+        try:
+            constraint.validate(constraint.min)
+        except ValueError:
+            pass
+        else:
+            valid.insert(0, constraint.min)
+    return valid
+
+
+def models_with_method_x_size(*methods: str) -> list[pytest.param]:
+    """Cross-product of ``models_with_method(*methods)`` × per-model sizes.
+
+    Returns ``pytest.param(model_name, image_size, ...)`` so the test
+    function receives two positional arguments.
+    """
+    params = []
+    for mp in models_with_method(*methods):
+        name = mp.values[0]
+        marks = list(mp.marks)
+        cls = MODEL_REGISTRY[name]
+        for size in _sizes_for_model(cls):
+            params.append(pytest.param(name, size, marks=marks, id=f"{name}-{size}"))
     return params

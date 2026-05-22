@@ -2,7 +2,7 @@ import torch
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import hf_access
-from lazyslide_models.base import ImageTextModel, ModelTask
+from lazyslide_models.base import ImageTextModel, InputConstraint, ModelTask
 
 
 @register(
@@ -19,7 +19,7 @@ from lazyslide_models.base import ImageTextModel, ModelTask
     param_size="675.2M",
     encode_dim=1024,
     flops="382.13G",
-    input_size=384,
+    input_constraint=InputConstraint(min=384),
 )
 class MUSK(
     ImageTextModel,

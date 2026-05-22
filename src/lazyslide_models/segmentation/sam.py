@@ -1,7 +1,12 @@
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, SegmentationModel, SegmentationOutput
+from lazyslide_models.base import (
+    InputConstraint,
+    ModelTask,
+    SegmentationModel,
+    SegmentationOutput,
+)
 
 
 @register(
@@ -13,7 +18,7 @@ from lazyslide_models.base import ModelTask, SegmentationModel, SegmentationOutp
     github_url="https://github.com/facebookresearch/segment-anything",
     paper_url="https://arxiv.org/abs/2304.02643",
     flops="975.67G",
-    input_size=1024,
+    input_constraint=InputConstraint(min=1024),
 )
 class SAM(SegmentationModel):
     SAM_VARIENTS = [

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
@@ -34,6 +35,63 @@ class ModelTask(Enum):
     style_transfer = "style_transfer"
     cv_feature = "cv_feature"
     image_generation = "image_generation"
+
+
+@dataclass(frozen=True)
+class InputConstraint:
+    """Declarative spatial input constraints for a model.
+
+    Attach via ``@register(input_constraint=InputConstraint(...))`` so that
+    tests and downstream tooling can inspect requirements at class level
+    without instantiating the model.
+
+    Parameters
+    ----------
+    min : int, optional
+        Minimum spatial size (inclusive).
+    max : int, optional
+        Maximum spatial size (inclusive).
+    divisible_by : int, optional
+        Spatial size must be divisible by this value (e.g. ViT patch size).
+    """
+
+    min: int | None = None
+    max: int | None = None
+    divisible_by: int | None = None
+
+    def validate(self, size: int, model_name: str = "Model") -> None:
+        """Raise ``ValueError`` if *size* violates any constraint."""
+        if self.min is not None and size < self.min:
+            raise ValueError(
+                f"{model_name} requires input size >= {self.min}, got {size}"
+            )
+        if self.max is not None and size > self.max:
+            raise ValueError(
+                f"{model_name} requires input size <= {self.max}, got {size}"
+            )
+        if self.divisible_by is not None and size % self.divisible_by != 0:
+            raise ValueError(
+                f"{model_name} requires input size divisible by "
+                f"{self.divisible_by}, got {size}"
+            )
+
+    def filter_sizes(self, sizes: list[int]) -> list[int]:
+        """Return the subset of *sizes* that satisfy all constraints."""
+        valid = []
+        for s in sizes:
+            if self.min is not None and s < self.min:
+                continue
+            if self.max is not None and s > self.max:
+                continue
+            if self.divisible_by is not None and s % self.divisible_by != 0:
+                continue
+            valid.append(s)
+        return valid
+
+    @property
+    def default_size(self) -> int:
+        """A reasonable default size for input generation."""
+        return self.min or 224
 
 
 class DenseTokens(NamedTuple):

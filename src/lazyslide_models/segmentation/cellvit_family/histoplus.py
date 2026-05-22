@@ -17,7 +17,12 @@ from lazyslide_models._utils import find_stack_level
 
 from ..._model_registry import register
 from ..._utils import hf_access
-from ...base import ModelTask, SegmentationModel, SegmentationOutput
+from ...base import (
+    InputConstraint,
+    ModelTask,
+    SegmentationModel,
+    SegmentationOutput,
+)
 from .blocks import (
     CellViTNeck,
     DecoderBranch,
@@ -272,12 +277,10 @@ class FeatureExtractor(nn.Module):
 class HistoPLUSModel(nn.Module):
     """Implementation of HistoPLUS CellViT segmentor."""
 
-    def __init__(self, inference_image_size, backbone_tile_size: int = 224) -> None:
+    def __init__(self, backbone_tile_size: int = 224) -> None:
         super().__init__()
 
         self.backbone = FeatureExtractor(tile_size=backbone_tile_size)
-
-        self.patch_size = self.backbone.patch_size
 
         self.embed_dim = 768
         self.skip_dim_1 = 512
@@ -295,24 +298,18 @@ class HistoPLUSModel(nn.Module):
             num_classes=2,
             embed_dim=self.embed_dim,
             bottleneck_dim=self.bottleneck_dim,
-            image_size=inference_image_size,
-            patch_size=self.patch_size,
         )
 
         self.hv_branch = DecoderBranch(
             num_classes=2,
             embed_dim=self.embed_dim,
             bottleneck_dim=self.bottleneck_dim,
-            image_size=inference_image_size,
-            patch_size=self.patch_size,
         )
 
         self.tp_branch = DecoderBranch(
             num_classes=15,  # self.number_cell_types
             embed_dim=self.embed_dim,
             bottleneck_dim=self.bottleneck_dim,
-            image_size=inference_image_size,
-            patch_size=self.patch_size,
         )
 
     def _extract_features(self, x: torch.Tensor) -> tuple[list[torch.Tensor], Any]:
@@ -366,7 +363,7 @@ class HistoPLUSModel(nn.Module):
     bib_key="Adjadj2025-hn",
     param_size="47.9M",
     flops="3.81T",
-    input_size=840,
+    input_constraint=InputConstraint(divisible_by=14),
 )
 class HistoPLUS(SegmentationModel):
     """
@@ -415,7 +412,6 @@ class HistoPLUS(SegmentationModel):
 
     def __init__(
         self,
-        tile_size: int = 840,
         magnification: Literal["20x", "40x"] = "20x",
         model_path=None,
         token=None,
@@ -424,7 +420,6 @@ class HistoPLUS(SegmentationModel):
 
         self.variant = magnification
         self.model = HistoPLUSModel(
-            inference_image_size=tile_size,
             backbone_tile_size=self._backbone_tile_size[magnification],
         )
         with hf_access("Owkin-Bioptimus/histoplus"):

@@ -122,8 +122,6 @@ class DecoderBranch(nn.Module):
         num_classes: int,
         embed_dim: int,
         bottleneck_dim: int,
-        image_size: int,
-        patch_size: int,
         dropout: float = 0,
     ) -> None:
         super().__init__()
@@ -185,13 +183,6 @@ class DecoderBranch(nn.Module):
             ),
         )
 
-        expected_size = get_expected_spatial_dimensions_of_upsampled_volume(
-            image_size, patch_size
-        )
-
-        self.target_size = (image_size, image_size)
-        self.upsampled_size = (expected_size, expected_size)
-
     def forward(self, z4, n):
         """Apply an upsampling branch to get the output map.
 
@@ -202,7 +193,7 @@ class DecoderBranch(nn.Module):
         z4 : torch.Tensor
             Feature map at the deepest level of the Vision Transformer.
             Input for the bottleneck upsampling path.
-            shape [B, emb_dim, H//16, W//16]
+            shape [B, emb_dim, H//p, W//p]
         n : list[torch.Tensor]
             Transformed features adapted for the upsampling path.
             n = [n0, n1, n2, n3]
@@ -210,7 +201,6 @@ class DecoderBranch(nn.Module):
             n1 : [B, 128, H//2, W//2]
             n2 : [B, 256, H//4, W//4]
             n3 : [B, bottleneck_dim, H//8, W//8]
-        branch_decoder (nn.Sequential): Branch decoder network
 
         Returns
         -------
@@ -231,9 +221,15 @@ class DecoderBranch(nn.Module):
         b1 = self.decoder1_upsampler(torch.cat([b1, b2], dim=1))
         ## Skip co 0 + header projection
         b0 = n[0]
-        # In the case of ViT with patch_size 14, the output maps have size (256, 256).
-        # They need to be downsampled to the input shape (224, 224).
-        b1 = downscale_map(b1, self.upsampled_size, self.target_size)
+        # When patch_size doesn't evenly tile the image (e.g. patch_size=14),
+        # the 4× transposed-conv upsampling produces a spatial size that
+        # differs from the original input.  Resize b1 to match b0 (which
+        # carries the original spatial dimensions).
+        target_size = b0.shape[-2:]
+        if b1.shape[-2:] != target_size:
+            b1 = F.interpolate(
+                b1, size=target_size, mode="bilinear", align_corners=False
+            )
         b0 = self.decoder0_header(torch.cat([b0, b1], dim=1))
 
         return b0
@@ -365,63 +361,3 @@ class MLP(nn.Module):
         x = self.fc2(x)
 
         return x
-
-
-def get_expected_spatial_dimensions_of_upsampled_volume(
-    image_size: int, patch_size: int
-) -> int:
-    """Compute the expected spatial dimension of the upsampled volumne after decoding.
-
-    Parameters
-    ----------
-    image_size : int
-        Spatial dimension (image size) of the input volume in the decoder.
-
-    patch_size : int
-        Patch size of the encoder.
-
-    Returns
-    -------
-    expected_size : int
-        Spatial dimension (image size) of the output volume after upscaling.
-    """
-    assert image_size % patch_size == 0, (
-        f"Image size ({image_size}) is not divisible by the patch size ({patch_size})"
-    )
-    return (image_size // patch_size) * (2**4)
-
-
-def downscale_map(
-    pred: torch.Tensor,
-    expected_shape: tuple[int, int] = (256, 256),
-    desired_shape: tuple[int, int] = (224, 224),
-) -> torch.Tensor:
-    """Downscale output maps to desired shape.
-
-    Useful for ViT with patch_size 14 (Hibou, Virchow, Bioptimus-H0)
-    for which the output maps need to be rescaled to the input size.
-
-    Parameters
-    ----------
-    pred: torch.Tensor
-        The prediction map tensor.
-    expected_shape: tuple[int] = (256, 256)
-        Potential shape of the map.
-    desired_shape: tuple[int] = (224, 224)
-        Desired shape. Correspond to the input shape.
-
-    Returns
-    -------
-    torch.Tensor
-        The rescaled prediction tensor.
-    """
-    output_shape = tuple(pred.shape[-2:])
-    if output_shape == expected_shape:
-        pred = F.interpolate(
-            pred, size=desired_shape, mode="bilinear", align_corners=False
-        )
-    else:
-        assert output_shape == desired_shape, (
-            f"Shapes of predicted maps are {output_shape}. It should be {desired_shape}!"
-        )
-    return pred

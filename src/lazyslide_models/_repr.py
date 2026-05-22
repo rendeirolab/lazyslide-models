@@ -10,17 +10,11 @@ def model_repr_html(model) -> str:
         HTML representation of the model card.
     """
     # Create a styled HTML representation
-    if isinstance(model.task, list):
-        task = [m.value for m in model.task]
-    else:
-        task = [model.task.value]
     html = [
         '<div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 10px 0; '
         'background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: fit-content;">',
         f'<h3 style="margin: 0 0 15px 0; text-align: center; color: #2c3e50;">{model.__class__.__name__}</h3>',
         '<ul style="list-style: none; padding: 0; margin: 0;">',
-        '<li style="margin-bottom: 8px;">',
-        f'<span style="font-weight: bold;">Model type:</span> {"; ".join(task)}</li>',
     ]
 
     # Add status with an icon
@@ -68,11 +62,15 @@ def model_repr_html(model) -> str:
 
 
 def model_doc(model):
+
     skeleton = (
         ":octicon:`lock;1em;sd-text-danger;` "
         if model.is_gated
         else ":octicon:`check-circle-fill;1em;sd-text-success;` "
     )
+    keys = getattr(model, "_registry_keys", None)
+    if keys:
+        skeleton += " ".join(f":bdg-primary:`{k}`" for k in keys) + " "
     if model.hf_url is not None:
         skeleton += f":bdg-link-primary-line:`🤗Hugging Face <{model.hf_url}>` "
     if model.github_url is not None:
@@ -81,10 +79,10 @@ def model_doc(model):
         skeleton += f":bdg-link-primary-line:`Paper <{model.paper_url}>` "
     if model.param_size is not None:
         skeleton += f":bdg-info-line:`Params: {model.param_size}` "
-    if model.encode_dim:
-        skeleton += f":bdg-info-line:`{model.encode_dim} features` "
-    if model.flops is not None:
-        skeleton += f":bdg-info-line:`FLOPs: {model.flops}` "
+    # if model.encode_dim:
+    #     skeleton += f":bdg-info-line:`{model.encode_dim} features` "
+    # if model.flops is not None:
+    #     skeleton += f":bdg-info-line:`FLOPs: {model.flops}` "
     if model.license is not None:
         if isinstance(model.license, list):
             license_str = "; ".join(model.license)

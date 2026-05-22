@@ -5,7 +5,12 @@ import numpy as np
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, SegmentationModel, SegmentationOutput
+from lazyslide_models.base import (
+    InputConstraint,
+    ModelTask,
+    SegmentationModel,
+    SegmentationOutput,
+)
 
 
 class CLAHE:
@@ -37,7 +42,7 @@ class CLAHE:
     bib_key="Haghighat2022-sy",
     param_size="50.3M",
     flops="44.94G",
-    input_size=448,
+    input_constraint=InputConstraint(min=448),
 )
 class PathProfilerTissueSegmentation(SegmentationModel):
     """

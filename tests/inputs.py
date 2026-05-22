@@ -2,7 +2,7 @@
 Mock input factories for each model task.
 
 Pure functions — no model names, no if/else.
-Input size variance is read from ``model.input_size`` (set by ``@register``).
+Input size is derived from ``model.input_constraint`` (set by ``@register``).
 Slide encoder embedding dimension is read from ``model.encode_dim``.
 
 The ``INPUT_FACTORY`` dispatch table maps ``ModelTask`` → factory function.
@@ -57,22 +57,37 @@ class ImageGenerationInputs(NamedTuple):
 # ── Shared helper ─────────────────────────────────────────────────────────────
 
 
-def _random_image(model=None) -> np.ndarray:
-    """Return a uint8 HWC numpy image at the model's preferred input size."""
-    size = getattr(model, "input_size", None) or 224
+def _random_image(model=None, size: int | None = None) -> np.ndarray:
+    """Return a uint8 HWC numpy image.
+
+    Parameters
+    ----------
+    model : optional
+        When *size* is ``None``, the image uses the default size from
+        ``model.input_constraint`` (or 224).
+    size : int, optional
+        Explicit spatial size — overrides the model's preferred size.
+        Used by the multi-size transform tests.
+    """
+    if size is None:
+        constraint = getattr(model, "input_constraint", None)
+        if constraint is not None:
+            size = constraint.default_size
+        else:
+            size = 224
     return _RNG.integers(0, 256, (size, size, 3), dtype=np.uint8)
 
 
 # ── Factories ─────────────────────────────────────────────────────────────────
 
 
-def make_vision(model=None) -> VisionInputs:
-    return VisionInputs(_random_image(model))
+def make_vision(model=None, size: int | None = None) -> VisionInputs:
+    return VisionInputs(_random_image(model, size=size))
 
 
-def make_multimodal(model=None) -> MultimodalInputs:
+def make_multimodal(model=None, size: int | None = None) -> MultimodalInputs:
     return MultimodalInputs(
-        image=_random_image(model),
+        image=_random_image(model, size=size),
         texts=[
             "A histopathology tissue image.",
             "Tumor cells with high mitotic index.",
@@ -80,8 +95,8 @@ def make_multimodal(model=None) -> MultimodalInputs:
     )
 
 
-def make_segmentation(model=None) -> SegmentationInputs:
-    return SegmentationInputs(_random_image(model))
+def make_segmentation(model=None, size: int | None = None) -> SegmentationInputs:
+    return SegmentationInputs(_random_image(model, size=size))
 
 
 def _slide_input_dim(model) -> int:
@@ -114,12 +129,12 @@ def make_slide_encoder(model=None) -> SlideEncoderInputs:
     return SlideEncoderInputs(embeddings, coords)
 
 
-def make_tile_prediction(model=None) -> TilePredictionInputs:
-    return TilePredictionInputs(_random_image(model))
+def make_tile_prediction(model=None, size: int | None = None) -> TilePredictionInputs:
+    return TilePredictionInputs(_random_image(model, size=size))
 
 
-def make_style_transfer(model=None) -> StyleTransferInputs:
-    return StyleTransferInputs(_random_image(model))
+def make_style_transfer(model=None, size: int | None = None) -> StyleTransferInputs:
+    return StyleTransferInputs(_random_image(model, size=size))
 
 
 def make_image_generation(model=None) -> ImageGenerationInputs:

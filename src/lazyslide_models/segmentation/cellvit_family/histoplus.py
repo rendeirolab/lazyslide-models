@@ -17,7 +17,12 @@ from lazyslide_models._utils import find_stack_level
 
 from ..._model_registry import register
 from ..._utils import hf_access
-from ...base import InputConstraint, ModelTask, SegmentationModel
+from ...base import (
+    InputConstraint,
+    ModelTask,
+    SegmentationModel,
+    SegmentationOutput,
+)
 from .blocks import (
     CellViTNeck,
     DecoderBranch,
@@ -315,7 +320,9 @@ class HistoPLUSModel(nn.Module):
         n = self.neck(z[:-1])
         return z, n
 
-    def forward(self, x: torch.Tensor) -> OrderedDict[str, torch.Tensor]:
+    def forward(
+        self, x: torch.Tensor
+    ) -> tuple[OrderedDict[str, torch.Tensor], torch.Tensor]:
         """Do forward pass for cell detection and classification.
 
         Parameters
@@ -325,11 +332,13 @@ class HistoPLUSModel(nn.Module):
 
         Returns
         -------
-        OrderedDict[str, torch.Tensor]
-            Dictionary containing the outputs of the different branches.
-            - "np" : torch.Tensor : [B, 2, H, W]
-            - "hv" : torch.Tensor : [B, 2, H, W]
-            - "tp" : torch.Tensor : [B, number_cell_types, H, W]
+        tuple[OrderedDict[str, torch.Tensor], torch.Tensor]
+            - Dictionary containing the outputs of the different branches.
+              - "np" : torch.Tensor : [B, 2, H, W]
+              - "hv" : torch.Tensor : [B, 2, H, W]
+              - "tp" : torch.Tensor : [B, number_cell_types, H, W]
+            - Patch token map from the last encoder layer,
+              shape [B, D, Patch_H, Patch_W].
         """
         z, n = self._extract_features(x)
 
@@ -338,7 +347,7 @@ class HistoPLUSModel(nn.Module):
         out_dict["hv"] = self.hv_branch(z[-1], n)
         out_dict["tp"] = self.tp_branch(z[-1], n)
 
-        return out_dict
+        return out_dict, z[-1]
 
 
 @register(
@@ -383,6 +392,24 @@ class HistoPLUS(SegmentationModel):
         "40x": 448,
     }
 
+    classes = (
+        "Background",
+        "Cancer cell",
+        "Lymphocytes",
+        "Fibroblasts",
+        "Plasmocytes",
+        "Eosinophils",
+        "Neutrophils",
+        "Macrophages",
+        "Muscle Cell",
+        "Endothelial Cell",
+        "Red blood cell",
+        "Epithelial",
+        "Apoptotic Body",
+        "Mitotic Figures",
+        "Minor Stromal Cell",
+    )
+
     def __init__(
         self,
         magnification: Literal["20x", "40x"] = "20x",
@@ -418,8 +445,7 @@ class HistoPLUS(SegmentationModel):
 
     @torch.inference_mode()
     def segment(self, image):
-        output = self.model(image)
-        # return output
+        output, patch_token_map = self.model(image)
         # postprocess the output
         flattened = [
             dict(zip(output.keys(), values)) for values in zip(*output.values())
@@ -437,33 +463,12 @@ class HistoPLUS(SegmentationModel):
             instances_maps.append(instance_map)
             prob_maps.append(prob_map)
 
-        return {
-            "instance_map": np.array(instances_maps),
-            "class_map": np.array(prob_maps),
-        }
-
-    def supported_outputs(self):
-        return ["instance_map", "class_map"]
-
-    @staticmethod
-    def get_classes():
-        return {
-            0: "Background",
-            1: "Cancer cell",
-            2: "Lymphocytes",
-            3: "Fibroblasts",
-            4: "Plasmocytes",
-            5: "Eosinophils",
-            6: "Neutrophils",
-            7: "Macrophages",
-            8: "Muscle Cell",
-            9: "Endothelial Cell",
-            10: "Red blood cell",
-            11: "Epithelial",
-            12: "Apoptotic Body",
-            13: "Mitotic Figures",
-            14: "Minor Stromal Cell",
-        }
+        return SegmentationOutput(
+            instance_map=np.array(instances_maps),
+            probability_map=np.array(prob_maps),
+            patch_token_map=patch_token_map,
+            classes=self.classes,
+        )
 
     @classmethod
     def check_input_tile(cls, tile_spec) -> bool:

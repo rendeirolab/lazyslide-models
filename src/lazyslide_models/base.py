@@ -109,6 +109,30 @@ class DenseTokens(NamedTuple):
     patch_tokens: Any  # torch.Tensor [B, N_patches, D]
 
 
+class SegmentationOutput(NamedTuple):
+    """Segmentation output from a segmentation model.
+    Covers both semantic and instance segmentation.
+
+    Attributes
+    ----------
+    probability_map : torch.Tensor
+        Per-class probabilities, shape ``[B, C, H, W]`` (float).
+    instance_map : torch.Tensor
+        Instance ID map, shape ``[B, H, W]`` (int).
+    patch_token_map : torch.Tensor
+        Vision token map, shape ``[B, D, Patch_H, Patch_W]``.
+        Only set when the model is a ViT.
+    classes : tuple of str
+        Class names in index order.
+
+    """
+
+    probability_map: Any = None
+    instance_map: Any = None
+    patch_token_map: Any = None
+    classes: Tuple | None = None
+
+
 @runtime_checkable
 class ModelBaseProtocol(Protocol):
     model: Any
@@ -155,9 +179,7 @@ class ZeroShotModelProtocol(ModelBaseProtocol, Protocol):
 
 @runtime_checkable
 class SegmentationModelProtocol(ModelBaseProtocol, Protocol):
-    def segment(self, image, *args, **kwargs) -> Dict[str, Any]: ...
-
-    def supported_outputs(self) -> Tuple[str]: ...
+    def segment(self, image, *args, **kwargs) -> SegmentationOutput: ...
 
 
 @runtime_checkable
@@ -369,11 +391,6 @@ class ImageTextModel(ImageModel):
 
 
 class SegmentationModel(ModelBase):
-    probability_map_key = "probability_map"
-    instance_map_key = "instance_map"
-    class_map_key = "class_map"
-    token_map_key = "token_map"
-
     def get_transform(self):
         import torch
         from torchvision.transforms.v2 import Compose, Normalize, ToDtype, ToImage
@@ -387,21 +404,8 @@ class SegmentationModel(ModelBase):
         )
 
     @abstractmethod
-    def segment(self, image) -> Dict[str, Any]:
+    def segment(self, image) -> SegmentationOutput:
         raise NotImplementedError
-
-    @abstractmethod
-    def supported_outputs(self) -> Tuple[str, ...]:
-        return (
-            "probability_map",
-            "instance_map",
-            "class_map",
-            "token_map",
-        )
-
-    @staticmethod
-    def get_classes() -> Tuple[str, ...] | None:
-        return None
 
 
 class TilePredictionModel(ModelBase):

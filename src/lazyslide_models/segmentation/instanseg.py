@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, SegmentationModel
+from lazyslide_models.base import ModelTask, SegmentationModel, SegmentationOutput
 
 if TYPE_CHECKING:
     from wsidata import TileSpec
@@ -72,10 +72,7 @@ class Instanseg(
         out = self.model(image)
         # Output is a tensor of B, C, H, W
         # But C is always 1, so we can squeeze it
-        return {"instance_map": out.long().squeeze(1)}
-
-    def supported_outputs(self):
-        return ("instance_map",)
+        return SegmentationOutput(instance_map=out.long().squeeze(1))
 
     def check_input_tile(self, tile_spec: "TileSpec") -> bool:
         check_mpp = tile_spec.mpp == 0.5

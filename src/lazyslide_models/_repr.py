@@ -70,7 +70,7 @@ def model_doc(model):
     )
     keys = getattr(model, "_registry_keys", None)
     if keys:
-        skeleton += " ".join(f":bdg-primary:`{k}`" for k in keys)
+        skeleton += " ".join(f":bdg-primary:`{k}`" for k in keys) + " "
     if model.hf_url is not None:
         skeleton += f":bdg-link-primary-line:`🤗Hugging Face <{model.hf_url}>` "
     if model.github_url is not None:

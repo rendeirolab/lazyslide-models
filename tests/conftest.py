@@ -265,9 +265,14 @@ def _sizes_for_model(cls) -> list[int]:
     if not valid:
         # Nothing in IMAGE_SIZES satisfies the constraint — test the default
         return [constraint.default_size]
-    # Always include the native min size if set and not already present
+    # Include the native min size only when it satisfies the full constraint
     if constraint.min is not None and constraint.min not in valid:
-        valid.insert(0, constraint.min)
+        try:
+            constraint.validate(constraint.min)
+        except ValueError:
+            pass
+        else:
+            valid.insert(0, constraint.min)
     return valid
 
 

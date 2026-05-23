@@ -63,7 +63,25 @@ class GigaPathSlideEncoder(SlideEncoderModel):
             login(token)
 
         try:
-            from gigapath.slide_encoder import create_model
+            # Monkey-patch: upstream `get_optimal_segment_length` builds the
+            # segment list via numpy then `str(list(...))`. Under NumPy >= 2,
+            # the repr becomes `[np.int64(1024), ...]`, which the downstream
+            # `eval(self.segment_length)` in torchscale cannot resolve
+            # (NameError: name 'np' is not defined). Cast to plain ints.
+            import numpy as np
+            from gigapath.slide_encoder import LongNetViT, create_model
+
+            def _patched_get_optimal_segment_length(
+                self, max_wsi_size: int = 262144, tile_size: int = 256
+            ) -> str:
+                max_seq_len = (max_wsi_size // tile_size) ** 2
+                segment_length = np.linspace(
+                    np.log2(1024), int(np.log2(max_seq_len)), 5
+                )
+                segment_length = np.power(2, segment_length).astype(int).tolist()
+                return str([int(x) for x in segment_length])
+
+            LongNetViT.get_optimal_segment_length = _patched_get_optimal_segment_length
 
             model = create_model(
                 "hf_hub:prov-gigapath/prov-gigapath",

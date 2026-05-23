@@ -56,6 +56,16 @@ class Titan(
         from transformers import AutoModel, PreTrainedTokenizerFast
 
         with hf_access(model_path):
+            # Pre-fetch the remote Titan class and patch it for
+            # transformers >= 5.0 compatibility. Upstream `Titan.__init__`
+            # never calls `self.post_init()`, so the attributes set in
+            # `PreTrainedModel.post_init()` (notably `all_tied_weights_keys`)
+            # are missing. `_finalize_model_loading` in transformers 5.x
+            # reads `model.all_tied_weights_keys.keys()` and crashes with
+            # `AttributeError: 'Titan' object has no attribute
+            # 'all_tied_weights_keys'`.
+            self._patch_titan_post_init(token)
+
             self.model = AutoModel.from_pretrained(
                 "MahmoodLab/TITAN",
                 add_pooling_layer=False,
@@ -68,6 +78,45 @@ class Titan(
             self.conch.eval()
             self.tokenizer = PreTrainedTokenizerFast.from_pretrained("MahmoodLab/TITAN")
             self.tokenizer.context_length = 128
+
+    @staticmethod
+    def _patch_titan_post_init(token=None):
+        """Patch ``MahmoodLab/TITAN`` Titan class for transformers >= 5.0.
+
+        Upstream ``Titan.__init__`` does ``super().__init__(config)`` but
+        never calls ``self.post_init()``. In transformers 5.x, attributes
+        such as ``all_tied_weights_keys`` are only set inside ``post_init``
+        and are read during ``_finalize_model_loading``. Without the call,
+        ``from_pretrained`` raises ``AttributeError``.
+
+        We wrap the upstream ``__init__`` to invoke ``post_init`` at the
+        end. Safe to call multiple times.
+        """
+        try:
+            from transformers.dynamic_module_utils import (
+                get_class_from_dynamic_module,
+            )
+
+            titan_cls = get_class_from_dynamic_module(
+                "modeling_titan.Titan",
+                "MahmoodLab/TITAN",
+                token=token,
+            )
+            if getattr(titan_cls, "_lazyslide_post_init_patched", False):
+                return
+
+            original_init = titan_cls.__init__
+
+            def patched_init(self, config, *args, **kwargs):
+                original_init(self, config, *args, **kwargs)
+                # Idempotent: post_init is safe to re-run if already called.
+                self.post_init()
+
+            titan_cls.__init__ = patched_init
+            titan_cls._lazyslide_post_init_patched = True
+        except Exception:
+            # If patching fails, let the normal error path surface it.
+            pass
 
     def to(self, device):
         super().to(device)
@@ -102,7 +151,10 @@ class Titan(
 
     @torch.inference_mode()
     def encode_text(self, text):
-        tokens = self.tokenizer.batch_encode_plus(
+        # transformers 5.x removed `batch_encode_plus` from the new
+        # `TokenizersBackend`. The tokenizer's `__call__` accepts the same
+        # arguments and works on both 4.x and 5.x.
+        tokens = self.tokenizer(
             text,
             max_length=127,
             add_special_tokens=True,

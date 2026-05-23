@@ -59,6 +59,7 @@ model = [
     "accelerate>=1.12.0",
     "gigapath",
     "protobuf",
+    "moozy"
 ]
 
 [tool.uv]

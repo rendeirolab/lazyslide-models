@@ -1,7 +1,12 @@
 from platformdirs import user_cache_path
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, SlideEncoderModel, TimmViTModel
+from lazyslide_models.base import (
+    ModelTask,
+    SlideEncodeOutput,
+    SlideEncoderModel,
+    TimmViTModel,
+)
 
 
 @register(
@@ -78,5 +83,5 @@ class GigaPathSlideEncoder(SlideEncoderModel):
                 "Try pip install git+https://github.com/prov-gigapath/prov-gigapath"
             )
 
-    def encode_slide(self, embeddings, coords=None, **kwargs):
-        return {"embedding": self.model(embeddings, coords).squeeze()}
+    def encode_slide(self, embeddings, coords=None, **kwargs) -> SlideEncodeOutput:
+        return {"embeddings": self.model(embeddings, coords).squeeze()}

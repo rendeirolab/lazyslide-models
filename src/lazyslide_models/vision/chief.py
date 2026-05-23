@@ -3,7 +3,12 @@ import warnings
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ImageModel, ModelTask, SlideEncoderModel
+from lazyslide_models.base import (
+    ImageModel,
+    ModelTask,
+    SlideEncodeOutput,
+    SlideEncoderModel,
+)
 
 
 @register(
@@ -71,7 +76,7 @@ class CHIEFSlideEncoder(SlideEncoderModel):
             self.model = torch.export.load(model_file).module()
 
     @torch.inference_mode()
-    def encode_slide(self, embeddings, coords=None, **kwargs):
+    def encode_slide(self, embeddings, coords=None, **kwargs) -> SlideEncodeOutput:
         """
         Encode the slide using the CHIEF slide encoder.
         The embeddings should be a tensor of shape [B, T, N].
@@ -84,4 +89,4 @@ class CHIEFSlideEncoder(SlideEncoderModel):
         for emb in embeddings:
             output = self.model(emb)
             outputs.append(output.squeeze(0))
-        return {"embedding": torch.stack(outputs, dim=0)}
+        return {"embeddings": torch.stack(outputs, dim=0)}

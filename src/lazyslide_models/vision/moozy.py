@@ -1,10 +1,9 @@
 import math
-from typing import Any, Dict
 
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, SlideEncoderModel
+from lazyslide_models.base import ModelTask, SlideEncodeOutput, SlideEncoderModel
 
 
 @register(
@@ -51,7 +50,7 @@ class Moozy(SlideEncoderModel):
         embeddings,
         coords=None,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> SlideEncodeOutput:
         """Encode patch features into a slide-level embedding.
 
         Parameters
@@ -80,7 +79,7 @@ class Moozy(SlideEncoderModel):
         Returns
         -------
         dict
-            ``{"embedding": cls_output}`` where ``cls_output`` is ``[B, 768]``.
+            ``{"embeddings": cls_output}`` where ``cls_output`` is ``[B, 768]``.
         """
         if coords is None:
             raise ValueError(
@@ -160,7 +159,7 @@ class Moozy(SlideEncoderModel):
             coords_xy=coords,
             patch_sizes=patch_sizes,
         )
-        return {"embedding": cls_output}
+        return {"embeddings": cls_output}
 
     @torch.inference_mode()
     def encode_case(self, slide_embeddings: torch.Tensor) -> torch.Tensor:

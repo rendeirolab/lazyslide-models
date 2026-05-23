@@ -4,7 +4,7 @@ import torch
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import hf_access
-from lazyslide_models.base import ModelTask, SlideEncoderModel
+from lazyslide_models.base import ModelTask, SlideEncodeOutput, SlideEncoderModel
 
 
 @register(
@@ -37,7 +37,7 @@ class MadeleineSlideEncoder(SlideEncoderModel):
             self.model = torch.export.load(model_file).module()
 
     @torch.inference_mode()
-    def encode_slide(self, embeddings, coords=None, **kwargs):
+    def encode_slide(self, embeddings, coords=None, **kwargs) -> SlideEncodeOutput:
         """
         Encode the slide using the Madeleine slide encoder.
         The embeddings should be a tensor of shape [B, C, H, W].
@@ -46,4 +46,4 @@ class MadeleineSlideEncoder(SlideEncoderModel):
             # If embeddings are of shape [T, N], we need to unsqueeze to [1, T, N]
             embeddings = embeddings.unsqueeze(0)
         output = self.model(embeddings)
-        return {"embedding": output}
+        return {"embeddings": output}

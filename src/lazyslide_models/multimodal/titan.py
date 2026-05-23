@@ -4,7 +4,12 @@ import torch.nn.functional as F
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import hf_access
-from lazyslide_models.base import ImageModel, InputConstraint, ModelTask
+from lazyslide_models.base import (
+    ImageModel,
+    InputConstraint,
+    ModelTask,
+    SlideEncodeOutput,
+)
 
 
 @register(
@@ -121,12 +126,14 @@ class Titan(
         return text_feature
 
     @torch.inference_mode()
-    def encode_slide(self, embeddings, coords=None, base_tile_size=None, **kwargs):
+    def encode_slide(
+        self, embeddings, coords=None, base_tile_size=None, **kwargs
+    ) -> SlideEncodeOutput:
         # Cast base_tile_size to numpy integer if it's not already
         slide_embeddings = self.model.encode_slide_from_patch_features(
             embeddings, coords, np.int64(base_tile_size)
         )
-        return {"embedding": slide_embeddings}
+        return {"embeddings": slide_embeddings}
 
     @torch.inference_mode()
     def score(

@@ -1,11 +1,22 @@
 import warnings
 from importlib.util import find_spec
+from typing import Any
 
 import torch
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import hf_access
-from lazyslide_models.base import ModelBase, ModelTask
+from lazyslide_models.base import ModelBase, ModelTask, SlideEncodeOutput
+
+
+class PrismSlideEncodeOutput(SlideEncodeOutput, total=False):
+    """Prism slide-encoder output.
+
+    Adds an optional ``latents`` field used downstream for captioning and
+    zero-shot scoring against the text decoder.
+    """
+
+    latents: Any  # torch.Tensor, captioning-ready latents
 
 
 @register(
@@ -81,10 +92,10 @@ class Prism(ModelBase):
             pass  # If patching fails, let the normal error path handle it
 
     @torch.inference_mode()
-    def encode_slide(self, embeddings, coords=None, **kwargs) -> dict:
+    def encode_slide(self, embeddings, coords=None, **kwargs) -> PrismSlideEncodeOutput:
         out = self.model.slide_representations(embeddings)
         return {
-            "embedding": out["image_embedding"],
+            "embeddings": out["image_embedding"],
             "latents": out["image_latents"],
         }
 

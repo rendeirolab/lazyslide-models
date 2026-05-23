@@ -265,7 +265,7 @@ def test_segment_sizes(
 
 @pytest.mark.parametrize("model_name", models_with_method("encode_slide"))
 def test_encode_slide(model_name: str, load_model, device: str) -> None:
-    """encode_slide() must return a dict with 'embedding' key (float Tensor, 1-D or 2-D)."""
+    """encode_slide() must return a dict with 'embeddings' key (float Tensor, 1-D or 2-D)."""
     model = load_model(model_name)
     inp = INPUT_FACTORY[ModelTask.slide_encoder](model)
     # Add batch dim: (1, N, D) embeddings and (1, N, 2) coords

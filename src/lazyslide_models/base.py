@@ -12,6 +12,7 @@ from typing import (
     Protocol,
     Self,
     Tuple,
+    TypedDict,
     runtime_checkable,
 )
 
@@ -133,6 +134,24 @@ class SegmentationOutput(NamedTuple):
     classes: Tuple | None = None
 
 
+class SlideEncodeOutput(TypedDict):
+    """Base structured output for slide encoders.
+
+    Runtime value is a plain ``dict``. Model-specific outputs should
+    subclass with ``total=False`` to declare optional extra fields, e.g.::
+
+        class PrismSlideEncodeOutput(SlideEncodeOutput, total=False):
+            latents: Any
+
+    Attributes
+    ----------
+    embeddings : torch.Tensor
+        Slide-level embedding, shape ``[B, D]`` or ``[D]``.
+    """
+
+    embeddings: Any  # torch.Tensor [B, D] or [D]
+
+
 @runtime_checkable
 class ModelBaseProtocol(Protocol):
     model: Any
@@ -169,7 +188,7 @@ class ImageTextModelProtocol(ImageModelProtocol, Protocol):
 class SlideEncoderModelProtocol(ModelBaseProtocol, Protocol):
     def encode_slide(
         self, embeddings, coords=None, *args, **kwargs
-    ) -> Dict[str, Any]: ...
+    ) -> SlideEncodeOutput: ...
 
 
 @runtime_checkable
@@ -371,13 +390,15 @@ class TimmViTModel(TimmModel):
 class SlideEncoderModel(ModelBase):
     """Base class for slide-level encoders.
 
-    ``encode_slide`` must return a dict with at least an ``"embedding"`` key
-    containing the primary slide embedding tensor.  Models may include extra
-    keys (e.g. ``"latents"`` for captioning-ready representations).
+    ``encode_slide`` must return a :class:`SlideEncodeOutput` (a ``TypedDict``)
+    with at least an ``"embeddings"`` key containing the primary slide
+    embedding tensor. Models may declare a subclass with ``total=False`` to
+    add extra fields (e.g. ``"latents"`` for captioning-ready
+    representations).
     """
 
     @abstractmethod
-    def encode_slide(self, embeddings, coords=None, **kwargs) -> Dict[str, Any]:
+    def encode_slide(self, embeddings, coords=None, **kwargs) -> SlideEncodeOutput:
         raise NotImplementedError
 
 

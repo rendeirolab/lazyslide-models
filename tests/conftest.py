@@ -95,6 +95,7 @@ def _model_sort_key(item: pytest.Item) -> tuple[int, str, str]:
     return (weight, name, item.name)
 
 
+@pytest.hookimpl(tryfirst=True)
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Reorder tests so all tests for model X run consecutively, then eviction works.
 

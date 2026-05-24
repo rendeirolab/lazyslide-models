@@ -101,5 +101,18 @@ class GigaPathSlideEncoder(SlideEncoderModel):
                 "Try pip install git+https://github.com/prov-gigapath/prov-gigapath"
             )
 
+        # `flash-attn` is CUDA-only.
+        try:
+            import flash_attn  # noqa: F401
+
+            _has_flash = True
+        except ImportError:
+            _has_flash = False
+        if not _has_flash:
+            for _m in self.model.modules():
+                _args = getattr(_m, "args", None)
+                if _args is not None and hasattr(_args, "flash_attention"):
+                    _args.flash_attention = False
+
     def encode_slide(self, embeddings, coords=None, **kwargs) -> SlideEncodeOutput:
         return {"embeddings": self.model(embeddings, coords).squeeze()}

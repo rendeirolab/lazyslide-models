@@ -96,7 +96,13 @@ def _model_sort_key(item: pytest.Item) -> tuple[int, str, str]:
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Reorder tests so all tests for model X run consecutively, then eviction works."""
+    """Reorder tests so all tests for model X run consecutively, then eviction works.
+
+    Also tag every item with ``xdist_group`` keyed by model name so that, under
+    ``pytest -n N --dist loadgroup``, all tests for a given model land on the
+    same worker — preventing the model from being loaded N times across
+    workers.
+    """
     items.sort(key=_model_sort_key)
 
     # Pre-count tests per model for eviction tracking
@@ -105,6 +111,8 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
         name = _extract_model_name(item.nodeid)
         if name:
             _model_remaining[name] += 1
+            # Pin all tests of this model to the same xdist worker
+            item.add_marker(pytest.mark.xdist_group(name))
 
 
 # ── Session fixtures ──────────────────────────────────────────────────────────

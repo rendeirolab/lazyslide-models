@@ -1,4 +1,4 @@
-# LazySlide Model
+# LazySlide models
 
 The model zoo for [LazySlide](https://github.com/rendeirolab/LazySlide).
 
@@ -9,5 +9,5 @@ The model zoo for [LazySlide](https://github.com/rendeirolab/LazySlide).
 
 ## Exported models
 
-Some model cannot be loaded directly from huggingface are exported and uploaded to our own huggingface repository.
-The script to reproduce the exported models can be found in `scripts/export_models`.
+Some models that cannot be loaded directly from huggingface are exported and uploaded to our own huggingface repository [https://huggingface.co/RendeiroLab/LazySlide-models](https://huggingface.co/RendeiroLab/LazySlide-models).
+The script to reproduce the exported models can be found in [`scripts/export_models`](scripts/export_models).

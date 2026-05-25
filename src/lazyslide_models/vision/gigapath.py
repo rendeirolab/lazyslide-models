@@ -1,5 +1,3 @@
-from platformdirs import user_cache_path
-
 from lazyslide_models._model_registry import register
 from lazyslide_models.base import (
     ModelTask,
@@ -60,9 +58,24 @@ class GigaPath(TimmViTModel):
 )
 class GigaPathSlideEncoder(SlideEncoderModel):
     def __init__(self, model_path=None, token=None):
-        from huggingface_hub import login
+        import warnings
+
+        import torch
+        from huggingface_hub import constants, login
 
         super().__init__()
+
+        # Upstream DilatedAttention hard-asserts `flash_attention=True` and
+        # has no CPU/MPS code path — only NVIDIA GPUs with `flash-attn`
+        # installed can run the forward pass.
+        if not torch.cuda.is_available():
+            warnings.warn(
+                "gigapath-slide-encoder requires a CUDA GPU with the "
+                "`flash-attn` package installed; CPU/MPS execution is not "
+                "supported by the upstream model.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
         if token is not None:
             login(token)
@@ -92,7 +105,7 @@ class GigaPathSlideEncoder(SlideEncoderModel):
                 "hf_hub:prov-gigapath/prov-gigapath",
                 "gigapath_slide_enc12l768d",
                 1536,
-                local_dir=str(user_cache_path("lazyslide")),
+                local_dir=constants.HF_HOME,
             )
             self.model = model
         except ModuleNotFoundError:

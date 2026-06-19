@@ -100,7 +100,7 @@ uv run hf upload RendeiroLab/LazySlide-models \
   ${folder_name}/${weights}
 ```
 
-For path2space
+For Path2Space
 ```bash
 folder_name="Path2Space"
 for weights in \

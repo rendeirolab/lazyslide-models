@@ -18,7 +18,8 @@ from ._model_registry import MODEL_REGISTRY, register
 from ._utils import hf_access
 from .base import (
     DenseTokens,
-    FeaturesPredictionModel,
+    FeaturePredictionModel,
+    FeaturePredictionModelProtocol,
     ImageGenerationModel,
     ImageGenerationModelProtocol,
     ImageModel,
@@ -54,7 +55,8 @@ __all__ = [
     "hf_access",
     "list_models",
     "DenseTokens",
-    "FeaturesPredictionModel",
+    "FeaturePredictionModel",
+    "FeaturePredictionModelProtocol",
     "SegmentationOutput",
     "ImageGenerationModel",
     "InputConstraint",

@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import FeaturesPredictionModel, ModelTask
+from lazyslide_models.base import FeaturePredictionModel, ModelTask
 
 
 @register(
@@ -20,7 +20,7 @@ from lazyslide_models.base import FeaturesPredictionModel, ModelTask
     param_size="1.76B",
     vision_encoder="ctranspath",
 )
-class Path2Space(FeaturesPredictionModel):
+class Path2Space(FeaturePredictionModel):
     """Path2Space gene-expression predictor.
 
     The model consumes raw 768-dimensional CTransPath tile features and

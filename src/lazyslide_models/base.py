@@ -443,7 +443,7 @@ class TilePredictionModel(ModelBase):
         raise NotImplementedError
 
 
-class FeaturesPredictionModel(ModelBase):
+class FeaturePredictionModel(ModelBase):
     features_model_name: str | None = None
 
     @abstractmethod

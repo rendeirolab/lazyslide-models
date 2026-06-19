@@ -6,6 +6,7 @@ __version__ = version
 
 
 from . import (
+    feature_prediction,
     image_generation,
     multimodal,
     segmentation,
@@ -17,6 +18,8 @@ from ._model_registry import MODEL_REGISTRY, register
 from ._utils import hf_access
 from .base import (
     DenseTokens,
+    FeaturePredictionModel,
+    FeaturePredictionModelProtocol,
     ImageGenerationModel,
     ImageGenerationModelProtocol,
     ImageModel,
@@ -41,6 +44,7 @@ from .base import (
 
 __all__ = [
     "multimodal",
+    "feature_prediction",
     "segmentation",
     "style_transfer",
     "tile_prediction",
@@ -51,6 +55,8 @@ __all__ = [
     "hf_access",
     "list_models",
     "DenseTokens",
+    "FeaturePredictionModel",
+    "FeaturePredictionModelProtocol",
     "SegmentationOutput",
     "ImageGenerationModel",
     "InputConstraint",

@@ -207,6 +207,11 @@ class TilePredictionModelProtocol(ModelBaseProtocol, Protocol):
 
 
 @runtime_checkable
+class FeaturePredictionModelProtocol(ModelBaseProtocol, Protocol):
+    def predict(self, features, *args, **kwargs) -> Dict[str, Any]: ...
+
+
+@runtime_checkable
 class StyleTransferModelProtocol(ModelBaseProtocol, Protocol):
     def predict(self, image, *args, **kwargs): ...
 
@@ -435,6 +440,14 @@ class TilePredictionModel(ModelBase):
         """The output should always be a dict of numpy arrays
         to allow multiple outputs.
         """
+        raise NotImplementedError
+
+
+class FeaturePredictionModel(ModelBase):
+    features_model_name: str | None = None
+
+    @abstractmethod
+    def predict(self, features) -> Dict[str, Any]:
         raise NotImplementedError
 
 

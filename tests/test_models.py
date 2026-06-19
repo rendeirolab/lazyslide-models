@@ -310,23 +310,24 @@ def _predict_models_x_size() -> list[pytest.param]:
         name = mp.values[0]
         marks = list(mp.marks)
         cls = MODEL_REGISTRY[name]
+        tasks = cls.task if isinstance(cls.task, list) else [cls.task]
+        if ModelTask.feature_prediction in tasks:
+            continue
         for size in _sizes_for_model(cls):
             params.append(pytest.param(name, size, marks=marks, id=f"{name}-{size}"))
     return params
 
 
-def _prepare_predict_image(model, image, device: str = "cpu"):
-    """Prepare image for tile prediction models."""
+def _prepare_predict_input(model, value, device: str = "cpu"):
+    """Prepare image or feature input for prediction models."""
     transform = model.get_transform()
     if transform is not None:
-        img = transform(image)
-        if isinstance(img, torch.Tensor) and img.ndim == 3:
-            img = img.unsqueeze(0)
-    else:
-        img = image  # cv_feature models accept raw numpy
-    if isinstance(img, torch.Tensor):
-        img = img.to(device)
-    return img
+        value = transform(value)
+        if isinstance(value, torch.Tensor) and value.ndim == 3:
+            value = value.unsqueeze(0)
+    if isinstance(value, torch.Tensor):
+        value = value.to(device)
+    return value
 
 
 @pytest.mark.parametrize("model_name", _predict_models())
@@ -337,8 +338,8 @@ def test_predict(model_name: str, load_model, device: str) -> None:
     raw_task = MODEL_REGISTRY[model_name].task
     task = raw_task[0] if isinstance(raw_task, list) else raw_task
     inp = INPUT_FACTORY[task](model)
-    img = _prepare_predict_image(model, inp.image, device)
-    out = model.predict(img)
+    value = _prepare_predict_input(model, inp[0], device)
+    out = model.predict(value)
     VALIDATOR[task](out)
 
 
@@ -351,8 +352,8 @@ def test_predict_sizes(
     raw_task = MODEL_REGISTRY[model_name].task
     task = raw_task[0] if isinstance(raw_task, list) else raw_task
     inp = INPUT_FACTORY[task](model, size=image_size)
-    img = _prepare_predict_image(model, inp.image, device)
-    out = model.predict(img)
+    value = _prepare_predict_input(model, inp[0], device)
+    out = model.predict(value)
     VALIDATOR[task](out)
 
 

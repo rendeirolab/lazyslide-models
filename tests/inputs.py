@@ -46,6 +46,10 @@ class TilePredictionInputs(NamedTuple):
     image: np.ndarray  # (H, W, 3) uint8
 
 
+class FeaturePredictionInputs(NamedTuple):
+    features: np.ndarray  # (N, D) float32
+
+
 class StyleTransferInputs(NamedTuple):
     image: np.ndarray  # (H, W, 3) uint8
 
@@ -133,6 +137,18 @@ def make_tile_prediction(model=None, size: int | None = None) -> TilePredictionI
     return TilePredictionInputs(_random_image(model, size=size))
 
 
+def make_feature_prediction(
+    model=None, size: int | None = None
+) -> FeaturePredictionInputs:
+    from lazyslide_models import MODEL_REGISTRY
+
+    encoder_name = getattr(model, "features_model_name", None)
+    encoder = MODEL_REGISTRY.get(encoder_name) if encoder_name else None
+    feature_dim = getattr(encoder, "encode_dim", None) or 768
+    features = _RNG.standard_normal((2, feature_dim), dtype=np.float32)
+    return FeaturePredictionInputs(features)
+
+
 def make_style_transfer(model=None, size: int | None = None) -> StyleTransferInputs:
     return StyleTransferInputs(_random_image(model, size=size))
 
@@ -150,7 +166,7 @@ INPUT_FACTORY: dict = {
     ModelTask.slide_encoder: make_slide_encoder,
     ModelTask.tile_prediction: make_tile_prediction,
     ModelTask.cv_feature: make_tile_prediction,
-    ModelTask.feature_prediction: make_tile_prediction,
+    ModelTask.feature_prediction: make_feature_prediction,
     ModelTask.style_transfer: make_style_transfer,
     ModelTask.image_generation: make_image_generation,
 }

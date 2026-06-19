@@ -99,3 +99,16 @@ uv run hf upload RendeiroLab/LazySlide-models \
   export_artifacts/${weights} \
   ${folder_name}/${weights}
 ```
+
+For path2space
+```bash
+folder_name="Path2Space"
+for weights in \
+    "Path2Space_exported.pt2" \
+    "Path2Space_genes.txt" \
+; do
+    uv run hf upload RendeiroLab/LazySlide-models \
+      export_artifacts/${weights} \
+      ${folder_name}/${weights}
+done
+```

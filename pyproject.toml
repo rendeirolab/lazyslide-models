@@ -59,7 +59,8 @@ model = [
     "accelerate>=1.12.0",
     "gigapath",
     "protobuf",
-    "moozy"
+    "moozy",
+    "deepspotm"
 ]
 
 [tool.uv]
@@ -70,6 +71,7 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 conch = { git = "https://github.com/mahmoodlab/CONCH.git" }
 musk = { git = "https://github.com/lilab-stanford/MUSK.git" }
 gigapath = { git = "https://github.com/prov-gigapath/prov-gigapath.git" }
+deepspotm = { git = "https://github.com/ratschlab/DeepSpotM.git" }
 
 [tool.taskipy.tasks]
 test = "pytest tests -v --tb=short"

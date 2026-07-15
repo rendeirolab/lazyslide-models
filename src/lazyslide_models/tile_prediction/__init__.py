@@ -9,6 +9,7 @@ from .cv_features import (
     Sobel,
     SplitRGB,
 )
+from .deepspotm import DeepSpotM
 from .focuslitenn import FocusLiteNN
 from .pathprofiler_qc import PathProfilerQC
 from .spider import (
@@ -34,6 +35,7 @@ CV_FEATURES = {
 
 __all__ = [
     "CV_FEATURES",
+    "DeepSpotM",
     "FocusLiteNN",
     "PathProfilerQC",
     "Spider",

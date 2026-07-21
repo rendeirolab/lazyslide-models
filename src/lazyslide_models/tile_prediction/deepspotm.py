@@ -4,6 +4,7 @@ import numpy as np
 import torch
 
 from lazyslide_models._model_registry import register
+from lazyslide_models._utils import hf_access
 from lazyslide_models.base import ModelTask, TilePredictionModel
 
 
@@ -68,7 +69,7 @@ class DeepSpotM(TilePredictionModel):
     ):
         try:
             from deepspotm import DeepSpotM as _DeepSpotM
-        except ImportError as e:
+        except (ImportError, ModuleNotFoundError) as e:
             raise ImportError(
                 "To use DeepSpotM, you need to install deepspotm: "
                 "pip install git+https://github.com/ratschlab/DeepSpotM.git"
@@ -83,9 +84,10 @@ class DeepSpotM(TilePredictionModel):
         # the backbone's own eval transform (center-crop to 224 + Midnight
         # normalization). It is stored on the wrapper so get_transform can hand
         # it to LazySlide's tile DataLoader.
-        self.model, self._transform = _DeepSpotM.from_pretrained(
-            "ratschlab/DeepSpotM", source=source
-        )
+        with hf_access("ratschlab/DeepSpotM"):
+            self.model, self._transform = _DeepSpotM.from_pretrained(
+                "ratschlab/DeepSpotM", source=source
+            )
         self.model.eval()
 
         if genes is None:

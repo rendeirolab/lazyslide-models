@@ -10,9 +10,6 @@ from lazyslide_models.base import ModelTask, TilePredictionModel
 @register(
     key="deepspotm",
     task=ModelTask.tile_prediction,
-    # ratschlab/DeepSpotM is a gated HF repo: accept the terms on the model
-    # page and log in (huggingface-cli login, HF_TOKEN, or the ``token`` arg)
-    # before loading.
     is_gated=True,
     license=["PolyForm-Noncommercial-1.0.0", "CC-BY-NC-SA-4.0"],
     license_url=[
@@ -59,9 +56,6 @@ class DeepSpotM(TilePredictionModel):
     genes : str or sequence of str, optional
         Restrict prediction to these gene symbols. When omitted, the full panel
         (``model.gene_names``) is predicted.
-    repo_id : str, default: "ratschlab/DeepSpotM"
-        Hugging Face repo id (or a local directory) holding ``config.json``,
-        ``model.safetensors`` and ``tokens.csv``.
     token : str, optional
         Hugging Face access token, used to log in before download.
     """
@@ -70,10 +64,15 @@ class DeepSpotM(TilePredictionModel):
         self,
         source: str = "scgpt",
         genes=None,
-        repo_id: str = "ratschlab/DeepSpotM",
         token: str | None = None,
     ):
-        from deepspotm import DeepSpotM as _DeepSpotM
+        try:
+            from deepspotm import DeepSpotM as _DeepSpotM
+        except ImportError as e:
+            raise ImportError(
+                "To use DeepSpotM, you need to install deepspotm: "
+                "pip install git+https://github.com/ratschlab/DeepSpotM.git"
+            ) from e
 
         if token is not None:
             from huggingface_hub import login
@@ -84,7 +83,9 @@ class DeepSpotM(TilePredictionModel):
         # the backbone's own eval transform (center-crop to 224 + Midnight
         # normalization). It is stored on the wrapper so get_transform can hand
         # it to LazySlide's tile DataLoader.
-        self.model, self._transform = _DeepSpotM.from_pretrained(repo_id, source=source)
+        self.model, self._transform = _DeepSpotM.from_pretrained(
+            "ratschlab/DeepSpotM", source=source
+        )
         self.model.eval()
 
         if genes is None:

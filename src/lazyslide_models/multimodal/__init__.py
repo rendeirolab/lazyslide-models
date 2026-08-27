@@ -10,12 +10,12 @@ from .quiltnet import QuiltNetB16, QuiltNetB16PMB, QuiltNetB32
 from .titan import Titan
 
 __all__ = [
-    "BiomedCLIP",
     "CONCH",
-    "MedSigLip",
     "MUSK",
-    "OmiCLIP",
     "PLIP",
+    "BiomedCLIP",
+    "MedSigLip",
+    "OmiCLIP",
     "Prism",
     "Prism2",
     "QuiltNetB16",

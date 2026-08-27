@@ -30,9 +30,9 @@ class RudolfV2Base(ImageModel):
             )
         self.model.eval()
 
-        # ViT-*/8 at 224 px yields a 28x28 = 784 patch grid; the flagship model
-        # card reports 793 output tokens, i.e. 1 CLS + 8 register tokens. Read
-        # the register count off the config so every variant is handled.
+        # ViT-*/8 at 224 px yields a 28x28 = 784 patch grid, plus 1 CLS and
+        # 8 register tokens = 793 output tokens. All three variants carry the
+        # registers; the count is read off the config rather than hardcoded.
         self.num_prefix_tokens = 1 + getattr(
             self.model.config, "num_register_tokens", 0
         )
@@ -71,8 +71,9 @@ shared_info = {
     key="rudolfv2-s",
     **shared_info,
     hf_url="https://huggingface.co/Aignostics/RudolfV-2-S",
-    param_size="22M",
+    param_size="21.4M",
     encode_dim=384,
+    flops="33.79G",
 )
 class RudolfV2S(RudolfV2Base):
     """RudolfV-2-S: ViT-S/8 distilled from RudolfV-2."""
@@ -84,8 +85,9 @@ class RudolfV2S(RudolfV2Base):
     key="rudolfv2-b",
     **shared_info,
     hf_url="https://huggingface.co/Aignostics/RudolfV-2-B",
-    param_size="86M",
+    param_size="85.2M",
     encode_dim=768,
+    flops="134.94G",
 )
 class RudolfV2B(RudolfV2Base):
     """RudolfV-2-B: ViT-B/8 distilled from RudolfV-2."""
@@ -97,8 +99,9 @@ class RudolfV2B(RudolfV2Base):
     key="rudolfv2",
     **shared_info,
     hf_url="https://huggingface.co/Aignostics/RudolfV-2",
-    param_size="1.1B",
+    param_size="1.13B",
     encode_dim=1536,
+    flops="1796.55G",
 )
 class RudolfV2(RudolfV2Base):
     """RudolfV-2: ViT-g/8 pretrained on 300,000 whole slide images."""

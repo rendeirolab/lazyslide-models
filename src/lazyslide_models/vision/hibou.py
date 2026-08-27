@@ -60,17 +60,17 @@ class Hibou(ImageModel):
         return image_features.pooler_output
 
 
-shared_info = dict(
-    is_gated=True,
-    task=ModelTask.vision,
-    license="Apache 2.0",
-    description="A family of foundational vision transformers for pathology",
-    commercial=True,
-    hf_url="https://huggingface.co/histai/hibou-b",
-    github_url="https://github.com/HistAI/hibou/",
-    paper_url="https://doi.org/10.48550/arXiv.2406.05074",
-    bib_key="Nechaev2024-wi",
-)
+shared_info = {
+    "is_gated": True,
+    "task": ModelTask.vision,
+    "license": "Apache 2.0",
+    "description": "A family of foundational vision transformers for pathology",
+    "commercial": True,
+    "hf_url": "https://huggingface.co/histai/hibou-b",
+    "github_url": "https://github.com/HistAI/hibou/",
+    "paper_url": "https://doi.org/10.48550/arXiv.2406.05074",
+    "bib_key": "Nechaev2024-wi",
+}
 
 
 @register(

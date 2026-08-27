@@ -67,10 +67,9 @@ for URL, OUT in tasks:
 import math
 from collections.abc import Iterable
 from itertools import repeat
-from typing import Optional
 
 import torch
-import torch.nn as nn
+from torch import nn
 from torch.nn.init import _calculate_fan_in_and_fan_out
 
 # --- helpers ----------------------------------------------------------------
@@ -95,9 +94,9 @@ def _no_grad_trunc_normal_(tensor, mean, std, a, b):
         return (1.0 + _math.erf(x / _math.sqrt(2.0))) / 2.0
 
     with torch.no_grad():
-        l = norm_cdf((a - mean) / std)  # noqa: E741
-        u = norm_cdf((b - mean) / std)  # noqa: E741
-        tensor.uniform_(2 * l - 1, 2 * u - 1)
+        lower = norm_cdf((a - mean) / std)
+        upper = norm_cdf((b - mean) / std)
+        tensor.uniform_(2 * lower - 1, 2 * upper - 1)
         tensor.erfinv_()
         tensor.mul_(std * _math.sqrt(2.0))
         tensor.add_(mean)
@@ -260,7 +259,7 @@ class WindowAttention(nn.Module):
         trunc_normal_(self.relative_position_bias_table, std=0.02)
         self.softmax = nn.Softmax(dim=-1)
 
-    def forward(self, x, mask: Optional[torch.Tensor] = None):
+    def forward(self, x, mask: torch.Tensor | None = None):
         B_, N, C = x.shape
         qkv = (
             self.qkv(x)
@@ -694,7 +693,7 @@ class ConvStem(nn.Module):
 # ---------------------------------------------------------------------------
 import warnings
 
-import torch.nn as nn
+from torch import nn
 
 warnings.filterwarnings(
     "ignore",

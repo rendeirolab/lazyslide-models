@@ -24,8 +24,8 @@ HEST_TISSUE_SEG_EXPORT_PATH = export_artifacts / "HEST_tissue_seg_exported.pt2"
 
 # %%
 import torch
-import torch.nn as nn
 from huggingface_hub import hf_hub_download
+from torch import nn
 
 weights_file = hf_hub_download(
     repo_id="MahmoodLab/hest-tissue-seg",

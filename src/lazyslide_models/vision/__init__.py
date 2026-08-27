@@ -20,6 +20,7 @@ from .path_orchestra import PathOrchestra
 from .phikon import Phikon, PhikonV2
 from .uni import UNI, UNI2
 from .virchow import Virchow, Virchow2
+from .waiv import Mascaret, Phaet
 
 __all__ = [
     "CHIEF",
@@ -39,11 +40,13 @@ __all__ = [
     "LunitResNet50BT",
     "LunitResNet50MoCoV2",
     "LunitResNet50SwAV",
+    "Mascaret",
     "MadeleineSlideEncoder",
     "Midnight",
     "Moozy",
     "OpenMidnight",
     "PathOrchestra",
+    "Phaet",
     "Phikon",
     "PhikonV2",
     "UNI",

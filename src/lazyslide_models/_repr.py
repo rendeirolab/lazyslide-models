@@ -11,8 +11,10 @@ def model_repr_html(model) -> str:
     """
     # Create a styled HTML representation
     html = [
-        '<div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 10px 0; '
-        'background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: fit-content;">',
+        (
+            '<div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 10px 0; '
+            'background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: fit-content;">'
+        ),
         f'<h3 style="margin: 0 0 15px 0; text-align: center; color: #2c3e50;">{model.__class__.__name__}</h3>',
         '<ul style="list-style: none; padding: 0; margin: 0;">',
     ]

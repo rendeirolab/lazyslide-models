@@ -1,7 +1,7 @@
 import warnings
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import hf_access
@@ -22,9 +22,9 @@ from lazyslide_models.base import ModelTask, StyleTransferModel
     flops="17.37G",
 )
 class ROSIE(StyleTransferModel):
-    def __init__(self, model_path: str = None, token: str = None):
-        import torchvision.models as models
+    def __init__(self, model_path: str | None = None, token: str | None = None):
         from huggingface_hub import hf_hub_download
+        from torchvision import models
 
         with hf_access("ericwu09/ROSIE"):
             weights_file = hf_hub_download(

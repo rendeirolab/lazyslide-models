@@ -28,6 +28,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # The `<5.0` leg is not redundant: `hibou-b`, `hibou-l` and the four
+        # `spider-*` keys only run on transformers 4.x, because their upstream
+        # `trust_remote_code` modules import `transformers.onnx`, which was
+        # removed in 5.0. That is third-party remote code, so it cannot be
+        # patched here. Drop this leg only once those models are fixed
+        # upstream or removed from the registry.
         transformers: ["<5.0", ">=5.0"]
     steps:
       - name: Check User Permission

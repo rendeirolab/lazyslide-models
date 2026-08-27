@@ -64,15 +64,15 @@ class WaivEncoder(ImageModel):
         return self.model(pixel_values=image).pooler_output
 
 
-shared_info = dict(
-    is_gated=True,
-    task=ModelTask.vision,
-    license="Waiv custom non-commercial license",
-    description="Robustifying pathology foundation models via fine-tuning",
-    commercial=False,
-    paper_url="https://doi.org/10.48550/arXiv.2607.22861",
-    bib_key="Filiot2026-rb",
-)
+shared_info = {
+    "is_gated": True,
+    "task": ModelTask.vision,
+    "license": "Waiv custom non-commercial license",
+    "description": "Robustifying pathology foundation models via fine-tuning",
+    "commercial": False,
+    "paper_url": "https://doi.org/10.48550/arXiv.2607.22861",
+    "bib_key": "Filiot2026-rb",
+}
 
 
 @register(

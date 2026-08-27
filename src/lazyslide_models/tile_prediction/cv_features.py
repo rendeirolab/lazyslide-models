@@ -10,15 +10,15 @@ from lazyslide_models._model_registry import register
 from lazyslide_models.base import ModelTask, TilePredictionModel
 
 __all__ = [
-    "SplitRGB",
     "Brightness",
+    "Canny",
     "Contrast",
+    "Entropy",
+    "HaralickTexture",
+    "Saturation",
     "Sharpness",
     "Sobel",
-    "Canny",
-    "Entropy",
-    "Saturation",
-    "HaralickTexture",
+    "SplitRGB",
 ]
 
 
@@ -42,7 +42,6 @@ class _CVFeatures(TilePredictionModel, ABC):
         Abstract method to be implemented by subclasses.
         This method should process a single image and return the feature.
         """
-        pass
 
     def _process_batch(self, images):
         results = []
@@ -53,7 +52,7 @@ class _CVFeatures(TilePredictionModel, ABC):
 
         if isinstance(results[0], dict):
             batch_results = {
-                key: np.array([r[key] for r in results]) for key in results[0].keys()
+                key: np.array([r[key] for r in results]) for key in results[0]
             }
             return batch_results
         else:
@@ -381,26 +380,26 @@ class HaralickTexture(_CVFeatures):
         for i, distance in enumerate(self.distances):
             for j, angle in enumerate(self.angles):
                 # Calculate offset
-                dx = int(round(distance * np.cos(angle)))
-                dy = int(round(distance * np.sin(angle)))
+                dx = round(distance * np.cos(angle))
+                dy = round(distance * np.sin(angle))
 
                 # Create shifted image
                 rows, cols = quantized.shape
                 shifted = np.zeros_like(quantized)
 
                 if dx >= 0:
-                    col_range = range(0, cols - dx)
+                    col_range = range(cols - dx)
                     shifted_col_range = range(dx, cols)
                 else:
                     col_range = range(-dx, cols)
-                    shifted_col_range = range(0, cols + dx)
+                    shifted_col_range = range(cols + dx)
 
                 if dy >= 0:
-                    row_range = range(0, rows - dy)
+                    row_range = range(rows - dy)
                     shifted_row_range = range(dy, rows)
                 else:
                     row_range = range(-dy, rows)
-                    shifted_row_range = range(0, rows + dy)
+                    shifted_row_range = range(rows + dy)
 
                 shifted[
                     shifted_row_range[0] : shifted_row_range[-1] + 1,

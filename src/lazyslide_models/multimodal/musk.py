@@ -100,7 +100,7 @@ class MUSK(
         # Get the model device
         try:
             device = next(self.model.parameters()).device
-        except Exception:
+        except (StopIteration, AttributeError):
             device = torch.device("cpu")
 
         if isinstance(text, str):

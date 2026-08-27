@@ -48,7 +48,7 @@ class OmiCLIP(ImageTextModel):
                     "WangGuangyuLab/Loki", "checkpoint.pt", token=token
                 )
 
-        opts = dict(pretrained=model_path)
+        opts = {"pretrained": model_path}
         if Version(version("open_clip_torch")) >= Version("3.0.0"):
             opts["weights_only"] = False
         else:
@@ -77,7 +77,7 @@ class OmiCLIP(ImageTextModel):
         # Move image to the same device as the model
         try:
             device = next(self.model.parameters()).device
-        except Exception:
+        except (StopIteration, AttributeError):
             device = torch.device("cpu")
         image = image.to(device)
 
@@ -101,7 +101,7 @@ class OmiCLIP(ImageTextModel):
         # Move tokenized text to the same device as the model
         try:
             device = next(self.model.parameters()).device
-        except Exception:
+        except (StopIteration, AttributeError):
             device = torch.device("cpu")
 
         feats = self.model.encode_text(text_inputs.to(device))

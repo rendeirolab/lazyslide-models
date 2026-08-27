@@ -35,7 +35,7 @@ weights_file = pooch.retrieve(
 import math
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 
 class FocusLiteNN(nn.Module):

@@ -51,14 +51,14 @@ if not PATCH_QUALITY_CHECKPOINT.exists():
 
 # %%
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 from torchvision import models
 
 
 class UNet_down_block(nn.Module):
     def __init__(self, input_channel, output_channel, down_size):
-        super(UNet_down_block, self).__init__()
+        super().__init__()
         self.conv1 = nn.Conv2d(input_channel, output_channel, 3, padding=1)
         self.bn1 = nn.InstanceNorm2d(output_channel)
         self.conv2 = nn.Conv2d(output_channel, output_channel, 3, padding=1)
@@ -77,7 +77,7 @@ class UNet_down_block(nn.Module):
 
 class UNet_up_block(nn.Module):
     def __init__(self, prev_channel, input_channel, output_channel):
-        super(UNet_up_block, self).__init__()
+        super().__init__()
         self.up_sampling = nn.Upsample(scale_factor=2, mode="bilinear")
         self.conv1 = nn.Conv2d(
             prev_channel + input_channel, output_channel, 3, padding=1
@@ -98,7 +98,7 @@ class UNet_up_block(nn.Module):
 
 class UNet(nn.Module):
     def __init__(self):
-        super(UNet, self).__init__()
+        super().__init__()
 
         self.down_block1 = UNet_down_block(3, 16, False)
         self.down_block2 = UNet_down_block(16, 32, True)
@@ -148,7 +148,7 @@ class UNet(nn.Module):
 
 class ResNet18(nn.Module):
     def __init__(self, n_classes):
-        super(ResNet18, self).__init__()
+        super().__init__()
         resnet = models.resnet18()
         self.resnet = nn.Sequential(*list(resnet.children())[:-1])
         self.down = nn.Linear(512, n_classes)

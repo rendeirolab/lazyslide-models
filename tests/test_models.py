@@ -49,6 +49,11 @@ if BIB_FILE.exists():
         re.findall(r"@\w+\{([^,]+),", BIB_FILE.read_text(encoding="utf-8"))
     )
 
+# Slide encoders that only run on CUDA with `flash-attn` installed.
+CUDA_ONLY_SLIDE_ENCODERS = frozenset(
+    {"gigapath-slide-encoder", "gigapath-flash-slide-encoder"}
+)
+
 # ── Shared image-prep helper ────────────────────────────────────────────────
 
 
@@ -266,11 +271,11 @@ def test_segment_sizes(
 @pytest.mark.parametrize("model_name", models_with_method("encode_slide"))
 def test_encode_slide(model_name: str, load_model, device: str) -> None:
     """encode_slide() must return a dict with 'embeddings' key (float Tensor, 1-D or 2-D)."""
-    # gigapath-slide-encoder relies on flash-attn (CUDA-only) — upstream
-    # DilatedAttention has no CPU/MPS fallback. Skip outside CUDA.
-    if model_name == "gigapath-slide-encoder" and device != "cuda":
+    # The GigaPath LongNet slide encoders rely on flash-attn (CUDA-only) —
+    # upstream DilatedAttention has no CPU/MPS fallback. Skip outside CUDA.
+    if model_name in CUDA_ONLY_SLIDE_ENCODERS and device != "cuda":
         pytest.skip(
-            "gigapath-slide-encoder requires CUDA + flash-attn (no CPU/MPS support upstream)"
+            f"{model_name} requires CUDA + flash-attn (no CPU/MPS support upstream)"
         )
     model = load_model(model_name)
     inp = INPUT_FACTORY[ModelTask.slide_encoder](model)

@@ -74,7 +74,7 @@ class CONCH(ImageTextModel):
         # Get the model device
         try:
             device = next(self.model.parameters()).device
-        except Exception:
+        except (StopIteration, AttributeError):
             device = torch.device("cpu")
         image = image.to(device)
 
@@ -107,7 +107,7 @@ class CONCH(ImageTextModel):
         # Get the model device
         try:
             device = next(self.model.parameters()).device
-        except Exception:
+        except (StopIteration, AttributeError):
             device = torch.device("cpu")
         encode_texts = encode_texts.to(device)
         text_feature = self.model.encode_text(encode_texts, normalize=True)

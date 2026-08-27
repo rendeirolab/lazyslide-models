@@ -81,16 +81,16 @@ class QuiltNet(ImageTextModel):
         return self.model.encode_text(tokens, normalize=True)
 
 
-shared_info = dict(
-    task=ModelTask.multimodal,
-    license="MIT",
-    description="Quilt-1M: histopathology vision-language model trained on 1M image-text pairs",
-    commercial=True,
-    github_url="https://github.com/wisdomikezogwo/quilt1m",
-    paper_url="https://doi.org/10.48550/arXiv.2306.11207",
-    bib_key="Ikezogwo2023-qn",
-    encode_dim=512,
-)
+shared_info = {
+    "task": ModelTask.multimodal,
+    "license": "MIT",
+    "description": "Quilt-1M: histopathology vision-language model trained on 1M image-text pairs",
+    "commercial": True,
+    "github_url": "https://github.com/wisdomikezogwo/quilt1m",
+    "paper_url": "https://doi.org/10.48550/arXiv.2306.11207",
+    "bib_key": "Ikezogwo2023-qn",
+    "encode_dim": 512,
+}
 
 
 @register(

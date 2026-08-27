@@ -15,6 +15,7 @@ from .lunit import (
 from .madeleine import MadeleineSlideEncoder
 from .midnight import Midnight
 from .moozy import Moozy
+from .mstar import MSTAR
 from .open_midnight import OpenMidnight
 from .path_orchestra import PathOrchestra
 from .phikon import Phikon, PhikonV2
@@ -26,6 +27,7 @@ from .waiv import Mascaret, Phaet
 __all__ = [
     "CHIEF",
     "GPFM",
+    "MSTAR",
     "UNI",
     "UNI2",
     "CHIEFSlideEncoder",

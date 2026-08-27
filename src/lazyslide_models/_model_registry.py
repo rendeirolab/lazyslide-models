@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import textwrap
 import warnings
-from collections.abc import MutableMapping
-from typing import TYPE_CHECKING, Dict, Iterator, List
+from collections.abc import Iterator, MutableMapping
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
@@ -24,7 +24,7 @@ class ModelRegistry(MutableMapping):
 
     def __init__(self):
         """Initialize an empty model registry."""
-        self._data: Dict[str, type[ModelBase]] = {}
+        self._data: dict[str, type[ModelBase]] = {}
 
     def __getitem__(self, key: str) -> type[ModelBase]:
         """Get a model card by key."""
@@ -81,7 +81,7 @@ class ModelRegistry(MutableMapping):
                     "description": getattr(model, "description", None),
                     "bib_key": getattr(model, "bib_key", None),
                 }
-        for k, record in data.items():
+        for record in data.values():
             record["key"] = "; ".join(record["key"])
         return pd.DataFrame(data.values()).sort_values(
             ["model_type", "key"], ascending=[False, True]
@@ -112,11 +112,11 @@ MODEL_REGISTRY = ModelRegistry()
 
 
 def register(
-    key: str | List[str],
-    task: ModelTask | List[ModelTask] | None = None,
+    key: str | list[str],
+    task: ModelTask | list[ModelTask] | None = None,
     is_gated: bool = False,
-    license: str | List[str] | None = None,
-    license_url: str | List[str] | None = None,
+    license: str | list[str] | None = None,
+    license_url: str | list[str] | None = None,
     description: str | None = None,
     commercial: bool | None = None,
     github_url: str | None = None,

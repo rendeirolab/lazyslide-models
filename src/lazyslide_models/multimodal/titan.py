@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -31,7 +33,7 @@ from lazyslide_models.base import (
 class Titan(
     ImageModel,
 ):
-    TEMPLATES = [
+    TEMPLATES: ClassVar[list[str]] = [
         "CLASSNAME.",
         "an image of CLASSNAME.",
         "the image shows CLASSNAME.",
@@ -119,7 +121,7 @@ class Titan(
 
             titan_cls.__init__ = patched_init
             titan_cls._lazyslide_post_init_patched = True
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             # If patching fails, let the normal error path surface it.
             pass
 
@@ -171,7 +173,7 @@ class Titan(
         tokens = F.pad(tokens["input_ids"], (0, 1), value=self.tokenizer.pad_token_id)
         try:
             device = next(self.model.parameters()).device
-        except Exception:
+        except (StopIteration, AttributeError):
             device = torch.device("cpu")
         encode_texts = tokens.to(device)
         text_feature = self.model.encode_text(encode_texts, normalize=True)
@@ -189,7 +191,11 @@ class Titan(
 
     @torch.inference_mode()
     def score(
-        self, slide_embeddings, prompts: list[str], template: str = None, **kwargs
+        self,
+        slide_embeddings,
+        prompts: list[str],
+        template: str | None = None,
+        **kwargs,
     ):
         if template is None:
             template = self.TEMPLATES

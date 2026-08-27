@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import warnings
 from collections import OrderedDict
-from typing import Any, Callable, Literal
+from collections.abc import Callable
+from typing import Any, ClassVar, Literal
 
 import numpy as np
 import timm
@@ -140,7 +141,7 @@ def interpolate_positional_encoding(
     assert pos_embedding is not None
 
     if num_reg_token > 0 and not has_cls_token:
-        raise Exception(
+        raise ValueError(
             "If register tokens are found in the positional encodings, the [CLS] token "
             "should also be there."
         )
@@ -387,7 +388,7 @@ class HistoPLUS(SegmentationModel):
 
     """
 
-    _backbone_tile_size = {
+    _backbone_tile_size: ClassVar[dict[str, int]] = {
         "20x": 224,
         "40x": 448,
     }

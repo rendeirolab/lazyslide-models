@@ -30,7 +30,7 @@ import pooch
 
 # %%
 import torch
-import torch.nn as nn
+from torch import nn
 
 # Download NuLite weights from Hugging Face
 nulite_weights = {
@@ -55,7 +55,7 @@ nulite_weights = {
 }
 
 # %%
-from typing import Dict, List, Literal
+from typing import Literal
 
 
 class Conv2DBlock(nn.Module):
@@ -126,7 +126,7 @@ class FastViTEncoder(nn.Module):
     def __init__(self, vit_structure, pretrained=True):
         import timm
 
-        super(FastViTEncoder, self).__init__()
+        super().__init__()
 
         self.fast_vit = timm.create_model(
             f"{vit_structure}.apple_in1k", features_only=True, pretrained=pretrained
@@ -164,12 +164,7 @@ class NuLite(nn.Module):
         num_nuclei_classes: int,
         num_tissue_classes: int,
         vit_structure: Literal[
-            "fastvit_t8",
-            "fastvit_t12",
-            "fastvit_s12",
-            "fastvit_sa24",
-            "fastvit_sa36",
-            "fastvit_sa36",
+            "fastvit_t8", "fastvit_t12", "fastvit_s12", "fastvit_sa24", "fastvit_sa36"
         ],
         drop_rate: float = 0.0,
     ):
@@ -178,7 +173,7 @@ class NuLite(nn.Module):
         embed_dims = self.embed_dims_info.get(vit_structure)
         if embed_dims is None:
             raise NotImplementedError("Unknown Fast-ViT backbone structure")
-        self.embed_dims: List[int] = embed_dims
+        self.embed_dims: list[int] = embed_dims
         self.drop_rate = drop_rate
         self.num_nuclei_classes = num_nuclei_classes
         self.regression_loss = False
@@ -236,7 +231,7 @@ class NuLite(nn.Module):
             ),
         )
 
-    def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         """Forward pass.
 
         Args:
@@ -250,7 +245,7 @@ class NuLite(nn.Module):
                 * nuclei_type_map: Raw binary nuclei type predictions. Shape: (B, num_nuclei_classes, H, W)
                 * patch_token_map: Last encoder stage features. Shape: (B, D, H', W')
         """
-        out_dict: Dict[str, torch.Tensor] = {}
+        out_dict: dict[str, torch.Tensor] = {}
 
         classifier_logits, _, z = self.encoder(x)
         out_dict["tissue_types"] = self.classifier_head(classifier_logits)

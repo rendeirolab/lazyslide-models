@@ -1,7 +1,7 @@
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models._utils import check_transformers_version, hf_access
+from lazyslide_models._utils import hf_access, require_transformers_below_5
 from lazyslide_models.base import DenseTokens, ImageModel, ModelTask
 
 
@@ -14,7 +14,11 @@ class Hibou(ImageModel):
                 "transformers is not installed. You can install it using "
                 "`pip install transformers`."
             )
-        check_transformers_version("hibou")
+        require_transformers_below_5(
+            "hibou",
+            "Its remote code imports `transformers.onnx`, which was removed in "
+            "transformers 5.0.",
+        )
 
         self.variant = variant
 

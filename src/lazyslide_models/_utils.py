@@ -6,26 +6,35 @@ from types import FrameType
 import torch
 
 
-def check_transformers_version(model_name: str, max_version: str = "5.0") -> None:
-    """Warn if the installed ``transformers`` version is >= *max_version*.
+def require_transformers_below_5(model_name: str, reason: str) -> None:
+    """Raise if the installed ``transformers`` is 5.0 or newer.
 
-    Some upstream HuggingFace model repos use ``trust_remote_code=True`` with
-    code that references APIs removed in newer ``transformers`` releases.
-    This emits a warning so users are aware; the model may still work once
-    the provider ships a fix.
+    Some upstream HuggingFace repos ship ``trust_remote_code`` modules that
+    import APIs removed in transformers 5.0. Because the failure happens
+    inside third-party remote code, it cannot be patched from here — the only
+    fix is to pin transformers. Raise up front with the real cause rather than
+    letting a bare ``ModuleNotFoundError`` surface from deep inside the
+    downloaded module.
+
+    Parameters
+    ----------
+    model_name : str
+        Registry key, used in the error message.
+    reason : str
+        One sentence naming what the remote code needs, e.g. which removed
+        module it imports.
     """
-    import warnings
     from importlib.metadata import version
 
     from packaging.version import Version
 
     installed = version("transformers")
-    if Version(installed) >= Version(max_version):
-        warnings.warn(
-            f"'{model_name}' may not work with transformers >= {max_version} "
-            f"(installed: {installed}). If you encounter errors, pin with: "
-            f"pip install 'transformers<{max_version}'",
-            stacklevel=2,
+    if Version(installed) >= Version("5.0"):
+        raise ImportError(
+            f"'{model_name}' requires transformers < 5.0 (installed: "
+            f"{installed}). {reason} This is upstream remote code and cannot "
+            f"be patched by lazyslide-models. Pin with: "
+            f"pip install 'transformers<5'"
         )
 
 

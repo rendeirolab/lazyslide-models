@@ -19,8 +19,10 @@ from .mstar import MSTAR
 from .open_midnight import OpenMidnight
 from .path_orchestra import PathOrchestra
 from .phikon import Phikon, PhikonV2
+from .rudolfv import RudolfV2, RudolfV2B, RudolfV2S
 from .uni import UNI, UNI2
 from .virchow import Virchow, Virchow2
+from .waiv import Mascaret, Phaet
 
 __all__ = [
     "CHIEF",
@@ -44,12 +46,17 @@ __all__ = [
     "LunitResNet50MoCoV2",
     "LunitResNet50SwAV",
     "MadeleineSlideEncoder",
+    "Mascaret",
     "Midnight",
     "Moozy",
     "OpenMidnight",
     "PathOrchestra",
+    "Phaet",
     "Phikon",
     "PhikonV2",
+    "RudolfV2",
+    "RudolfV2B",
+    "RudolfV2S",
     "Virchow",
     "Virchow2",
 ]

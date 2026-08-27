@@ -55,16 +55,16 @@ class RudolfV2Base(ImageModel):
         return self.encode_image_dense(image).cls_token
 
 
-shared_info = dict(
-    is_gated=True,
-    task=ModelTask.vision,
-    license="CC-BY-NC-ND-4.0 with supplementary terms",
-    description=(
+shared_info = {
+    "is_gated": True,
+    "task": ModelTask.vision,
+    "license": "CC-BY-NC-ND-4.0 with supplementary terms",
+    "description": (
         "A family of robust and efficient open-weights pathology foundation models"
     ),
-    commercial=False,
-    bib_key="Milbich2026-rv",
-)
+    "commercial": False,
+    "bib_key": "Milbich2026-rv",
+}
 
 
 @register(

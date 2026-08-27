@@ -15,6 +15,7 @@ from .lunit import (
 from .madeleine import MadeleineSlideEncoder
 from .midnight import Midnight
 from .moozy import Moozy
+from .mstar import MSTAR
 from .open_midnight import OpenMidnight
 from .path_orchestra import PathOrchestra
 from .phikon import Phikon, PhikonV2
@@ -41,6 +42,7 @@ __all__ = [
     "LunitResNet50SwAV",
     "MadeleineSlideEncoder",
     "Midnight",
+    "MSTAR",
     "Moozy",
     "OpenMidnight",
     "PathOrchestra",

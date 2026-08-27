@@ -194,7 +194,7 @@ class Titan(
         self,
         slide_embeddings,
         prompts: list[str],
-        template: str | None = None,
+        template: list[str] | None = None,
         **kwargs,
     ):
         if template is None:

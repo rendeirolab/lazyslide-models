@@ -94,9 +94,9 @@ def _no_grad_trunc_normal_(tensor, mean, std, a, b):
         return (1.0 + _math.erf(x / _math.sqrt(2.0))) / 2.0
 
     with torch.no_grad():
-        l = norm_cdf((a - mean) / std)
-        u = norm_cdf((b - mean) / std)
-        tensor.uniform_(2 * l - 1, 2 * u - 1)
+        lower = norm_cdf((a - mean) / std)
+        upper = norm_cdf((b - mean) / std)
+        tensor.uniform_(2 * lower - 1, 2 * upper - 1)
         tensor.erfinv_()
         tensor.mul_(std * _math.sqrt(2.0))
         tensor.add_(mean)

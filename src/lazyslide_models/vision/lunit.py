@@ -1,16 +1,16 @@
 from lazyslide_models._model_registry import register
 from lazyslide_models.base import ModelTask, TimmModel, TimmViTModel
 
-shared_info = dict(
-    task=ModelTask.vision,
-    license="lunit-non-commercial",
-    license_url="https://github.com/lunit-io/benchmark-ssl-pathology/blob/main/LICENSE",
-    description="Benchmarking Self-Supervised Learning on Diverse Pathology Datasets",
-    commercial=False,
-    github_url="https://github.com/lunit-io/benchmark-ssl-pathology",
-    paper_url="https://doi.org/10.48550/arXiv.2212.04690",
-    bib_key="Kang2023-bp",
-)
+shared_info = {
+    "task": ModelTask.vision,
+    "license": "lunit-non-commercial",
+    "license_url": "https://github.com/lunit-io/benchmark-ssl-pathology/blob/main/LICENSE",
+    "description": "Benchmarking Self-Supervised Learning on Diverse Pathology Datasets",
+    "commercial": False,
+    "github_url": "https://github.com/lunit-io/benchmark-ssl-pathology",
+    "paper_url": "https://doi.org/10.48550/arXiv.2212.04690",
+    "bib_key": "Kang2023-bp",
+}
 
 
 class LunitResNet50(TimmModel):

@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    Dict,
     NamedTuple,
     Protocol,
     Self,
-    Tuple,
     TypedDict,
     runtime_checkable,
 )
@@ -131,7 +129,7 @@ class SegmentationOutput(NamedTuple):
     probability_map: Any = None
     instance_map: Any = None
     patch_token_map: Any = None
-    classes: Tuple | None = None
+    classes: tuple | None = None
 
 
 class SlideEncodeOutput(TypedDict):
@@ -173,8 +171,8 @@ class ImageModelProtocol(ModelBaseProtocol, Protocol):
 
 @runtime_checkable
 class ViTModelProtocol(ModelBaseProtocol, Protocol):
-    grid_size: Tuple[int, int]
-    patch_size: Tuple[int, int]
+    grid_size: tuple[int, int]
+    patch_size: tuple[int, int]
 
     def encode_image_dense(self, image, *args, **kwargs) -> DenseTokens: ...
 
@@ -203,19 +201,19 @@ class SegmentationModelProtocol(ModelBaseProtocol, Protocol):
 
 @runtime_checkable
 class TilePredictionModelProtocol(ModelBaseProtocol, Protocol):
-    def predict(self, image, *args, **kwargs) -> Dict[str, Any]: ...
+    def predict(self, image, *args, **kwargs) -> dict[str, Any]: ...
 
 
 @runtime_checkable
 class FeaturePredictionModelProtocol(ModelBaseProtocol, Protocol):
-    def predict(self, features, *args, **kwargs) -> Dict[str, Any]: ...
+    def predict(self, features, *args, **kwargs) -> dict[str, Any]: ...
 
 
 @runtime_checkable
 class StyleTransferModelProtocol(ModelBaseProtocol, Protocol):
     def predict(self, image, *args, **kwargs): ...
 
-    def get_channel_names(self) -> Tuple[str, ...]: ...
+    def get_channel_names(self) -> tuple[str, ...]: ...
 
 
 @runtime_checkable
@@ -257,7 +255,7 @@ class ModelBase(ABC):
 
     def _resolve_method(
         self, model: torch.nn.Module, method: str
-    ) -> Tuple[Any, torch.nn.Module] | None:
+    ) -> tuple[Any, torch.nn.Module] | None:
         """Resolve method path and return (callable, target_model) for FLOPS counting."""
         if "." in method:
             parts = method.split(".")
@@ -378,9 +376,9 @@ class TimmViTModel(TimmModel):
             raise ValueError(f"Model {name} is not a timm VisionTransformer")
 
         patch_embed = self.model.patch_embed
-        self.img_size: Tuple[int, int] = patch_embed.img_size
-        self.patch_size: Tuple[int, int] = patch_embed.patch_size
-        self.grid_size: Tuple[int, int] = patch_embed.grid_size
+        self.img_size: tuple[int, int] = patch_embed.img_size
+        self.patch_size: tuple[int, int] = patch_embed.patch_size
+        self.grid_size: tuple[int, int] = patch_embed.grid_size
         self.num_prefix_tokens: int = int(self.model.num_prefix_tokens)
 
     @torch.inference_mode()
@@ -436,7 +434,7 @@ class SegmentationModel(ModelBase):
 
 class TilePredictionModel(ModelBase):
     @abstractmethod
-    def predict(self, image) -> Dict[str, Any]:
+    def predict(self, image) -> dict[str, Any]:
         """The output should always be a dict of numpy arrays
         to allow multiple outputs.
         """
@@ -447,7 +445,7 @@ class FeaturePredictionModel(ModelBase):
     features_model_name: str | None = None
 
     @abstractmethod
-    def predict(self, features) -> Dict[str, Any]:
+    def predict(self, features) -> dict[str, Any]:
         raise NotImplementedError
 
 
@@ -457,7 +455,7 @@ class StyleTransferModel(ModelBase):
         raise NotImplementedError
 
     @abstractmethod
-    def get_channel_names(self) -> Tuple[str, ...]:
+    def get_channel_names(self) -> tuple[str, ...]:
         raise NotImplementedError
 
 

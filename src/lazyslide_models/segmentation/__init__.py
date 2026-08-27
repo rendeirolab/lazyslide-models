@@ -8,14 +8,14 @@ from .sam import SAM
 from .smp import SMPBase
 
 __all__ = [
-    "Cellpose",
-    "Instanseg",
     "SAM",
-    "SMPBase",
-    "HistoPLUS",
-    "NuLite",
+    "Cellpose",
     "GrandQCArtifact",
     "GrandQCTissue",
-    "PathProfilerTissueSegmentation",
     "HESTTissueSegmentation",
+    "HistoPLUS",
+    "Instanseg",
+    "NuLite",
+    "PathProfilerTissueSegmentation",
+    "SMPBase",
 ]

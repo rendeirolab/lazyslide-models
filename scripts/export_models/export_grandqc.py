@@ -75,7 +75,7 @@ ENTRY = pooch.create(
     registry=registry,
 )
 
-for key in registry.keys():
+for key in registry:
     ENTRY.fetch(key, progressbar=True)
 
 

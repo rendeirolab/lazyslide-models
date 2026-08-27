@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import torch
 
 from lazyslide_models._model_registry import register
@@ -21,13 +23,13 @@ from lazyslide_models.base import (
     input_constraint=InputConstraint(min=1024),
 )
 class SAM(SegmentationModel):
-    SAM_VARIENTS = [
+    SAM_VARIENTS: ClassVar[list[str]] = [
         "facebook/sam-vit-base",
         "facebook/sam-vit-large",
         "facebook/sam-vit-huge",
     ]
 
-    SAM_HQ_VARIENTS = [
+    SAM_HQ_VARIENTS: ClassVar[list[str]] = [
         "syscv-community/sam-hq-vit-base",
         "syscv-community/sam-hq-vit-large",
         "syscv-community/sam-hq-vit-huge",

@@ -37,7 +37,7 @@ PATH2SPACE_GENES_PATH = export_artifacts / "Path2Space_genes.txt"
 # %%
 import pooch
 import torch
-import torch.nn as nn
+from torch import nn
 
 ZENODO_BASE = "https://zenodo.org/records/20174301/files"
 

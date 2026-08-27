@@ -88,7 +88,7 @@ class Prism(ModelBase):
                 biogpt_cls._tied_weights_keys = {
                     k: "biogpt.embed_tokens.weight" for k in tied
                 }
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass  # If patching fails, let the normal error path handle it
 
     @torch.inference_mode()

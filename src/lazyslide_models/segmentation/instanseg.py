@@ -74,7 +74,7 @@ class Instanseg(
         # But C is always 1, so we can squeeze it
         return SegmentationOutput(instance_map=out.long().squeeze(1))
 
-    def check_input_tile(self, tile_spec: "TileSpec") -> bool:
+    def check_input_tile(self, tile_spec: TileSpec) -> bool:
         check_mpp = tile_spec.mpp == 0.5
         check_size = tile_spec.height == 512 and tile_spec.width == 512
         if not check_mpp or not check_size:

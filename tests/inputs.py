@@ -107,11 +107,19 @@ def _slide_input_dim(model) -> int:
     """Resolve the expected input embedding dim for a slide encoder.
 
     Slide encoders consume tile embeddings from an upstream vision encoder.
-    If the model declares ``vision_encoder``, look up that encoder's
-    ``encode_dim`` in the registry.  Otherwise fall back to the model's own
+    A model may declare ``slide_input_dim`` to state the dimension outright;
+    otherwise, if it declares ``vision_encoder``, look up that encoder's
+    ``encode_dim`` in the registry.  Failing both, fall back to the model's own
     ``encode_dim``, then 768.
     """
     from lazyslide_models import MODEL_REGISTRY
+
+    # Explicit override for models whose input dim differs from the upstream
+    # encoder's advertised ``encode_dim`` (e.g. PRISM2 takes the Virchow2 CLS
+    # token alone, 1280-d, not the 2560-d CLS+mean vector).
+    override = getattr(model, "slide_input_dim", None)
+    if override is not None:
+        return override
 
     vision_encoder = getattr(model, "vision_encoder", None)
     if vision_encoder and vision_encoder in MODEL_REGISTRY:

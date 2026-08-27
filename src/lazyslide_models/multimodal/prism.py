@@ -144,6 +144,23 @@ class Prism(ModelBase):
         probs = torch.cat(class_probs, dim=-1)
         return probs
 
+    def respond(
+        self,
+        img_latents,
+        prompt: list[str],
+        max_length: int = 100,
+    ) -> list[str]:
+        """Generate a free-text caption per slide.
+
+        Implements
+        :class:`TextResponseModelProtocol <lazyslide_models.TextResponseModelProtocol>`.
+        ``img_latents`` is the ``"latents"`` entry of :meth:`encode_slide`'s
+        output — *not* raw tile embeddings, which is what
+        :meth:`Prism2.respond <lazyslide_models.multimodal.Prism2.respond>`
+        takes.
+        """
+        return self.caption(img_latents, prompt=prompt, max_length=max_length)
+
     @torch.inference_mode()
     def caption(
         self,

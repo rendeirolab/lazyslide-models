@@ -23,12 +23,14 @@ from .virchow import Virchow, Virchow2
 
 __all__ = [
     "CHIEF",
+    "GPFM",
+    "UNI",
+    "UNI2",
     "CHIEFSlideEncoder",
     "CTransPath",
+    "GenBioPathFM",
     "GigaPath",
     "GigaPathSlideEncoder",
-    "GenBioPathFM",
-    "GPFM",
     "H0Mini",
     "HOptimus0",
     "HOptimus1",
@@ -46,8 +48,6 @@ __all__ = [
     "PathOrchestra",
     "Phikon",
     "PhikonV2",
-    "UNI",
-    "UNI2",
     "Virchow",
     "Virchow2",
 ]

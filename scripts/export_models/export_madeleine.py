@@ -26,9 +26,9 @@ MADELEINE_EXPORT_PATH = export_artifacts / "MADELEINE_exported.pt2"
 # %%
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
+from torch import nn
 
 HE_POSITION = 0
 
@@ -36,7 +36,7 @@ HE_POSITION = 0
 # %%
 class MADELEINE(nn.Module):
     def __init__(self, config, stain_encoding=False):
-        super(MADELEINE, self).__init__()
+        super().__init__()
         self.config = config
         self.modalities = config.MODALITIES
         self.stain_encoding = stain_encoding
@@ -80,9 +80,7 @@ class MADELEINE(nn.Module):
 
         else:
             raise ValueError(
-                'Unsupported wsi_encoder. Must be "abmil". Now is {}.'.format(
-                    self.config.wsi_encoder
-                )
+                f'Unsupported wsi_encoder. Must be "abmil". Now is {self.config.wsi_encoder}.'
             )
 
     def encode_he(self, feats, device):
@@ -228,7 +226,7 @@ class MADELEINE(nn.Module):
 
 class MLP(nn.Module):
     def __init__(self, input_dim, output_dim):
-        super(MLP, self).__init__()
+        super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.blocks = nn.Sequential(
@@ -252,7 +250,7 @@ class MLP(nn.Module):
 
 class ProjHead(nn.Module):
     def __init__(self, input_dim, output_dim):
-        super(ProjHead, self).__init__()
+        super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.layers = nn.Sequential(
@@ -277,7 +275,7 @@ class ABMILEmbedder(nn.Module):
         attention_params: dict = None,
         aggregation: str = "regular",
     ) -> None:
-        super(ABMILEmbedder, self).__init__()
+        super().__init__()
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.pre_attention_params = pre_attention_params
         self.attention_params = attention_params
@@ -402,7 +400,7 @@ class BatchedABMIL(nn.Module):
         n_heads=1,
         activation="softmax",
     ):
-        super(BatchedABMIL, self).__init__()
+        super().__init__()
 
         self.activation = activation
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -449,7 +447,7 @@ class MADELEINEJITWrapper(nn.Module):
     """
 
     def __init__(self, madeleine_model: MADELEINE):
-        super(MADELEINEJITWrapper, self).__init__()
+        super().__init__()
 
         self.input_dim = madeleine_model.wsi_embedders.pre_attention_params["input_dim"]
         self.hidden_dim = madeleine_model.wsi_embedders.pre_attention_params[

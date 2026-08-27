@@ -38,22 +38,22 @@ class CytoSyn(ImageGenerationModel):
             )
 
     def generate(self, *args, **kwargs):
-        opts = dict(
-            num_images_per_prompt=1,
-            num_inference_steps=250,
-            guidance_scale=1.0,  # No guidance for unconditional
-        )
+        opts = {
+            "num_images_per_prompt": 1,
+            "num_inference_steps": 250,
+            "guidance_scale": 1.0,  # No guidance for unconditional
+        }
         opts.update(kwargs)
         return self.model(**opts)["images"]
 
     def generate_conditionally(self, h0_mini_embeds, **kwargs):
-        opts = dict(
-            h0_mini_embeds=h0_mini_embeds,
-            num_images_per_prompt=1,
-            num_inference_steps=250,
-            guidance_scale=2.5,
-            guidance_low=0.0,
-            guidance_high=0.75,
-        )
+        opts = {
+            "h0_mini_embeds": h0_mini_embeds,
+            "num_images_per_prompt": 1,
+            "num_inference_steps": 250,
+            "guidance_scale": 2.5,
+            "guidance_low": 0.0,
+            "guidance_high": 0.75,
+        }
         opts.update(kwargs)
         return self.model(**opts)["images"]

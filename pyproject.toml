@@ -40,7 +40,7 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=6.0",
     "pytest-xdist>=3.0",
-    "ruff>=0.15.12",
+    "ruff>=0.16.4",
     "taskipy>=1.14.1",
 ]
 model = [
@@ -103,4 +103,19 @@ lint.extend-select = ["I"]
 line-length = 88
 
 [tool.ruff.lint.per-file-ignores]
-"scripts/export_models/*.py" = ["E402"]
+# These are one-off reproduction scripts that vendor upstream model code
+# verbatim; they are not part of the shipped package and are not linted for
+# style beyond syntax.
+"scripts/export_models/*.py" = [
+    "E402",    # imports after sys.path / config setup
+    "B008",    # function call in argument default (upstream code)
+    "BLE001",  # blind `except Exception` (upstream code)
+    "EXE001",  # shebang without the executable bit
+    "RUF012",  # mutable class default (upstream code)
+    "RUF013",  # implicit Optional (upstream code)
+    "RUF059",  # unused unpacked variable (upstream code)
+]
+# The `load_model` fixture must skip on *any* load failure — a missing optional
+# dependency, a gated repo, an upstream incompatibility — so a blind catch is
+# the point, not an oversight.
+"tests/conftest.py" = ["BLE001", "S110"]

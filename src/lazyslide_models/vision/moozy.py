@@ -98,7 +98,7 @@ class Moozy(SlideEncoderModel):
             if embeddings.shape[-1] == 384:
                 # [B, T, 384] -> reshape to [B, H, W, 384]
                 B, T, D = embeddings.shape
-                H = int(math.isqrt(T))
+                H = math.isqrt(T)
                 W = (T + H - 1) // H
                 if H * W != T:
                     # Zero-pad to fill grid

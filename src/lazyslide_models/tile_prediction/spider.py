@@ -46,14 +46,14 @@ class Spider(TilePredictionModel):
         return {"class": np.asarray(predicted_class_names), "prob": prob.max(1)}
 
 
-shared_info = dict(
-    is_gated=True,
-    task=ModelTask.tile_prediction,
-    license="CC BY-NC 4.0",
-    commercial=False,
-    hf_url="https://huggingface.co/collections/histai/spider-models-and-datasets-6814834eca365b006389c117",
-    param_size="303.9M",
-)
+shared_info = {
+    "is_gated": True,
+    "task": ModelTask.tile_prediction,
+    "license": "CC BY-NC 4.0",
+    "commercial": False,
+    "hf_url": "https://huggingface.co/collections/histai/spider-models-and-datasets-6814834eca365b006389c117",
+    "param_size": "303.9M",
+}
 
 
 @register(

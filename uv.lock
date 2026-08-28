@@ -887,7 +887,7 @@ wheels = [
 [[package]]
 name = "gigapath"
 version = "0.1.0"
-source = { git = "https://github.com/prov-gigapath/prov-gigapath.git#3505f87e197d167522be491bb3f18fb5a08ca584" }
+source = { git = "https://github.com/prov-gigapath/prov-gigapath.git#55431e04ff853a08f752a0ba42e6e9c48e60c776" }
 
 [[package]]
 name = "gitdb"

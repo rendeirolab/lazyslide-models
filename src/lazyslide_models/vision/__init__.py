@@ -1,7 +1,12 @@
 from .chief import CHIEF, CHIEFSlideEncoder
 from .ctranspath import CTransPath
 from .genbio_pathfm import GenBioPathFM
-from .gigapath import GigaPath, GigaPathSlideEncoder
+from .gigapath import (
+    GigaPath,
+    GigaPathFlash,
+    GigaPathFlashSlideEncoder,
+    GigaPathSlideEncoder,
+)
 from .gpfm import GPFM
 from .h_optimus import H0Mini, HOptimus0, HOptimus1
 from .hibou import HibouB, HibouL
@@ -34,6 +39,8 @@ __all__ = [
     "CTransPath",
     "GenBioPathFM",
     "GigaPath",
+    "GigaPathFlash",
+    "GigaPathFlashSlideEncoder",
     "GigaPathSlideEncoder",
     "H0Mini",
     "HOptimus0",

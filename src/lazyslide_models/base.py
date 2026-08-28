@@ -195,6 +195,20 @@ class ZeroShotModelProtocol(ModelBaseProtocol, Protocol):
 
 
 @runtime_checkable
+class TextResponseModelProtocol(ModelBaseProtocol, Protocol):
+    """Free-text generation conditioned on a slide representation.
+
+    Input semantics are model-specific — read each model's ``respond``
+    docstring. :class:`Prism <lazyslide_models.multimodal.Prism>` consumes the
+    captioning latents produced by its ``encode_slide``, while
+    :class:`Prism2 <lazyslide_models.multimodal.Prism2>` consumes raw tile
+    embeddings. The protocol unifies the *capability*, not the input.
+    """
+
+    def respond(self, *args, **kwargs) -> list[str]: ...
+
+
+@runtime_checkable
 class SegmentationModelProtocol(ModelBaseProtocol, Protocol):
     def segment(self, image, *args, **kwargs) -> SegmentationOutput: ...
 

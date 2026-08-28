@@ -1,7 +1,6 @@
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models._utils import check_transformers_version
 from lazyslide_models.base import DenseTokens, ImageModel, ModelTask
 
 
@@ -28,8 +27,6 @@ class GenBioPathFM(ImageModel):
                 "transformers is not installed. You can install it using "
                 "`pip install transformers`."
             )
-        check_transformers_version("genbio-pathfm")
-
         self.model = AutoModel.from_pretrained(
             "genbio-ai/genbio-pathfm",
             trust_remote_code=True,

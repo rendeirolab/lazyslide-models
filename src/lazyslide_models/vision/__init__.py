@@ -1,7 +1,12 @@
 from .chief import CHIEF, CHIEFSlideEncoder
 from .ctranspath import CTransPath
 from .genbio_pathfm import GenBioPathFM
-from .gigapath import GigaPath, GigaPathSlideEncoder
+from .gigapath import (
+    GigaPath,
+    GigaPathFlash,
+    GigaPathFlashSlideEncoder,
+    GigaPathSlideEncoder,
+)
 from .gpfm import GPFM
 from .h_optimus import H0Mini, HOptimus0, HOptimus1
 from .hibou import HibouB, HibouL
@@ -15,21 +20,27 @@ from .lunit import (
 from .madeleine import MadeleineSlideEncoder
 from .midnight import Midnight
 from .moozy import Moozy
+from .mstar import MSTAR
 from .open_midnight import OpenMidnight
 from .path_orchestra import PathOrchestra
 from .phikon import Phikon, PhikonV2
+from .rudolfv import RudolfV2, RudolfV2B, RudolfV2S
 from .uni import UNI, UNI2
 from .virchow import Virchow, Virchow2
+from .waiv import Mascaret, Phaet
 
 __all__ = [
     "CHIEF",
     "GPFM",
+    "MSTAR",
     "UNI",
     "UNI2",
     "CHIEFSlideEncoder",
     "CTransPath",
     "GenBioPathFM",
     "GigaPath",
+    "GigaPathFlash",
+    "GigaPathFlashSlideEncoder",
     "GigaPathSlideEncoder",
     "H0Mini",
     "HOptimus0",
@@ -42,12 +53,17 @@ __all__ = [
     "LunitResNet50MoCoV2",
     "LunitResNet50SwAV",
     "MadeleineSlideEncoder",
+    "Mascaret",
     "Midnight",
     "Moozy",
     "OpenMidnight",
     "PathOrchestra",
+    "Phaet",
     "Phikon",
     "PhikonV2",
+    "RudolfV2",
+    "RudolfV2B",
+    "RudolfV2S",
     "Virchow",
     "Virchow2",
 ]

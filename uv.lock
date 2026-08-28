@@ -887,7 +887,7 @@ wheels = [
 [[package]]
 name = "gigapath"
 version = "0.1.0"
-source = { git = "https://github.com/prov-gigapath/prov-gigapath.git#3505f87e197d167522be491bb3f18fb5a08ca584" }
+source = { git = "https://github.com/prov-gigapath/prov-gigapath.git#55431e04ff853a08f752a0ba42e6e9c48e60c776" }
 
 [[package]]
 name = "gitdb"
@@ -1189,7 +1189,6 @@ model = [
     { name = "protobuf" },
     { name = "sacremoses" },
     { name = "sentencepiece" },
-    { name = "transformers" },
 ]
 
 [package.metadata]
@@ -1202,7 +1201,7 @@ requires-dist = [
     { name = "scipy" },
     { name = "timm", specifier = ">=1.0.3" },
     { name = "torch", specifier = ">=2.1.0" },
-    { name = "transformers", specifier = ">=4.0.0" },
+    { name = "transformers", specifier = ">=4.49.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -1232,7 +1231,6 @@ model = [
     { name = "protobuf" },
     { name = "sacremoses", specifier = ">=0.1.1" },
     { name = "sentencepiece", specifier = ">=0.2.1" },
-    { name = "transformers", specifier = ">=4.49.0" },
 ]
 
 [[package]]

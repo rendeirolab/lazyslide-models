@@ -1,4 +1,4 @@
-from .gigatime import GigaTIME
+from .gigatime import GigaTIME, GigaTIMEFlash
 from .rosie import ROSIE
 
-__all__ = ["ROSIE", "GigaTIME"]
+__all__ = ["ROSIE", "GigaTIME", "GigaTIMEFlash"]

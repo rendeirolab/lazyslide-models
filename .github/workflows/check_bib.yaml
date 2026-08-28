@@ -1,0 +1,24 @@
+name: Check references.bib
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'references.bib'
+      - 'scripts/check_bib.py'
+      - '.github/workflows/check_bib.yaml'
+  pull_request:
+    paths:
+      - 'references.bib'
+      - 'scripts/check_bib.py'
+      - '.github/workflows/check_bib.yaml'
+
+jobs:
+  check-bib:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Stdlib-only script — no uv sync, the runner's python3 is enough.
+      - name: Check references.bib
+        run: python3 scripts/check_bib.py references.bib

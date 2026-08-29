@@ -1,5 +1,6 @@
 from .cellpose import Cellpose
 from .cellvit_family import HistoPLUS, NuLite
+from .classpose import Classpose
 from .grandqc import GrandQCArtifact, GrandQCTissue
 from .hest import HESTTissueSegmentation
 from .instanseg import Instanseg
@@ -10,6 +11,7 @@ from .smp import SMPBase
 __all__ = [
     "SAM",
     "Cellpose",
+    "Classpose",
     "GrandQCArtifact",
     "GrandQCTissue",
     "HESTTissueSegmentation",

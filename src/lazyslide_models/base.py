@@ -220,7 +220,14 @@ class TilePredictionModelProtocol(ModelBaseProtocol, Protocol):
 
 @runtime_checkable
 class FeaturePredictionModelProtocol(ModelBaseProtocol, Protocol):
-    def predict(self, features, *args, **kwargs) -> dict[str, Any]: ...
+    """Prediction from a precomputed tile-feature matrix.
+
+    ``coords`` is only supplied when the model sets ``needs_coords``; per-tile
+    models ignore it. See :class:`FeaturePredictionModel` for the flags that
+    control how the runner feeds the model.
+    """
+
+    def predict(self, features, coords=None, *args, **kwargs) -> dict[str, Any]: ...
 
 
 @runtime_checkable
@@ -456,10 +463,32 @@ class TilePredictionModel(ModelBase):
 
 
 class FeaturePredictionModel(ModelBase):
+    """Base class for models that predict from a tile-feature matrix.
+
+    Two class-level flags tell the runner how to feed the model. The defaults
+    describe a per-tile model, which the runner may batch freely:
+
+    Attributes
+    ----------
+    features_model_name : str, optional
+        Registry key of the vision model whose features this model consumes.
+        Used to resolve the input feature table when the caller does not name
+        one.
+    needs_coords : bool, default: False
+        Whether ``predict`` requires tile coordinates. When set, the runner
+        passes an ``[n_tiles, 2]`` array of tile origins as ``coords``.
+    whole_slide : bool, default: False
+        Whether the model must see every tile in a single call. Set this for
+        models with spatial context — batching them would silently produce
+        wrong predictions, since each batch would only see part of the slide.
+    """
+
     features_model_name: str | None = None
+    needs_coords: bool = False
+    whole_slide: bool = False
 
     @abstractmethod
-    def predict(self, features) -> dict[str, Any]:
+    def predict(self, features, coords=None) -> dict[str, Any]:
         raise NotImplementedError
 
 

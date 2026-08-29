@@ -18,9 +18,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+        # astral-sh publishes immutable releases and no longer moves major
+        # tags, so this must be an exact version — `@v10` does not exist.
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: '3.12'
           enable-cache: true
@@ -35,9 +37,9 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: '3.12'
           enable-cache: true
@@ -54,9 +56,9 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: '3.12'
           enable-cache: true

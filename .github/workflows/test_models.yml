@@ -45,7 +45,7 @@ jobs:
           echo "${{ github.triggering_actor }} does not have permissions on this repo."
           exit 1
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Needed so `git diff <base>...HEAD` can resolve the merge base.
           fetch-depth: 0
@@ -55,14 +55,16 @@ jobs:
       # restoring ~50 GB there costs several minutes and buys nothing.
       - name: Restore HuggingFace cache
         if: github.event_name != 'pull_request'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.HF_HOME }}
           key: hf-models-${{ github.run_id }}
           restore-keys: hf-models
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        # astral-sh publishes immutable releases and no longer moves major
+        # tags, so this must be an exact version — `@v10` does not exist.
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: "3.12"
           enable-cache: true
@@ -96,14 +98,14 @@ jobs:
 
       - name: Save HuggingFace cache
         if: github.event_name != 'pull_request' && success()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ${{ env.HF_HOME }}
           key: hf-models-${{ github.run_id }}
 
       - name: Upload coverage reports to Codecov
         if: always()
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: models

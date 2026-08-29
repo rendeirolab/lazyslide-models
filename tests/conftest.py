@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gc
+import inspect
 import re
 from collections import Counter
 
@@ -23,6 +24,24 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "--skip-models",
         default="",
         help="Comma-separated model names to skip (e.g. 'gigapath,sam')",
+    )
+    parser.addoption(
+        "--models",
+        default="",
+        help=(
+            "Comma-separated model names to test exclusively (e.g. 'uni,plip'). "
+            "Tests that do not load weights still run for every model."
+        ),
+    )
+    parser.addoption(
+        "--changed-since",
+        default="",
+        metavar="REF",
+        help=(
+            "Test only the models affected by 'git diff REF...HEAD'. Used by CI "
+            "so a pull request does not download the whole registry. Falls back "
+            "to testing everything whenever the change cannot be mapped."
+        ),
     )
 
 
@@ -95,15 +114,79 @@ def _model_sort_key(item: pytest.Item) -> tuple[int, str, str]:
     return (weight, name, item.name)
 
 
-@pytest.hookimpl(tryfirst=True)
-def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Reorder tests so all tests for model X run consecutively, then eviction works.
+def _selected_models(config: pytest.Config) -> frozenset[str] | None:
+    """Resolve ``--models`` / ``--changed-since`` to a key set, or ``None`` for all."""
+    explicit = config.getoption("--models")
+    if explicit:
+        names = frozenset(n.strip() for n in explicit.split(",") if n.strip())
+        unknown = sorted(names - set(MODEL_REGISTRY))
+        if unknown:
+            raise pytest.UsageError(
+                f"--models names unknown model(s): {', '.join(unknown)}"
+            )
+        return names
 
-    Also tag every item with ``xdist_group`` keyed by model name so that, under
-    ``pytest -n N --dist loadgroup``, all tests for a given model land on the
-    same worker — preventing the model from being loaded N times across
+    ref = config.getoption("--changed-since")
+    if ref:
+        from _model_selection import changed_models_since
+
+        return changed_models_since(ref)
+
+    return None
+
+
+def _loads_weights(item: pytest.Item) -> bool:
+    """Whether *item* downloads model weights.
+
+    Checks the test function's own signature rather than ``item.fixturenames``:
+    the autouse eviction fixture pulls ``load_model`` into every item's fixture
+    closure, so that attribute would report True for every test.
+    """
+    func = getattr(item, "function", None)
+    if func is None:
+        return False
+    return "load_model" in inspect.signature(func).parameters
+
+
+def _deselect_unselected(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Drop weight-loading tests for models outside the selection.
+
+    Only tests that actually load weights are dropped. Everything else — notably
+    ``test_model_attributes``, which reads class attributes and takes
+    milliseconds for the whole registry — keeps running for every model, so
+    registry-wide invariants like a missing ``bib_key`` are still caught on a
+    selective run.
+    """
+    selected = _selected_models(config)
+    if selected is None:
+        return
+
+    keep, drop = [], []
+    for item in items:
+        name = _extract_model_name(item.nodeid)
+        if not _loads_weights(item) or name is None or name in selected:
+            keep.append(item)
+        else:
+            drop.append(item)
+
+    if drop:
+        config.hook.pytest_deselected(items=drop)
+        items[:] = keep
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    """Deselect unrelated models, then order the rest for cache reuse.
+
+    Reordering makes all tests for model X run consecutively so eviction works.
+    Each item is also tagged with ``xdist_group`` keyed by model name so that,
+    under ``pytest -n N --dist loadgroup``, all tests for a given model land on
+    the same worker — preventing the model from being loaded N times across
     workers.
     """
+    _deselect_unselected(config, items)
     items.sort(key=_model_sort_key)
 
     # Pre-count tests per model for eviction tracking

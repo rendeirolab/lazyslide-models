@@ -83,8 +83,12 @@ def _prepare_image(model, image, device: str = "cpu"):
 
 
 @pytest.mark.parametrize("model_name", all_models())
-def test_model_attributes(model_name: str, load_model) -> None:
-    """Every model must have name, task, license, commercial set"""
+def test_model_attributes(model_name: str) -> None:
+    """Every model must have name, task, license, commercial set.
+
+    Reads class attributes only — no weights are loaded, which is why this
+    test keeps running for the whole registry even on a selective run.
+    """
     cls = MODEL_REGISTRY[model_name]
 
     assert cls.name is not None, "model.name is None"

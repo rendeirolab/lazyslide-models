@@ -3,16 +3,20 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * 0' # Every Sunday at midnight UTC
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/test_models.yml'
-      - 'src/lazyslide_models/**'
   pull_request:
     paths:
       - '.github/workflows/test_models.yml'
       - 'src/lazyslide_models/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+
+# Testing every model downloads tens of GB, so a superseded run is expensive to
+# leave running. There is deliberately no `push` trigger: a merge would re-run
+# exactly what the pull request just ran, and the weekly schedule covers drift
+# on main.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   HF_HOME: /home/runner/.cache/huggingface
@@ -23,18 +27,8 @@ env:
 
 jobs:
   test-models:
-    name: Test models (transformers ${{ matrix.transformers }})
+    name: Test models
     runs-on: linux-cpu8-300g
-    strategy:
-      fail-fast: false
-      matrix:
-        # The `<5.0` leg is not redundant: `hibou-b`, `hibou-l` and the four
-        # `spider-*` keys only run on transformers 4.x, because their upstream
-        # `trust_remote_code` modules import `transformers.onnx`, which was
-        # removed in 5.0. That is third-party remote code, so it cannot be
-        # patched here. Drop this leg only once those models are fixed
-        # upstream or removed from the registry.
-        transformers: ["<5.0", ">=5.0"]
     steps:
       - name: Check User Permission
         id: checkAccess
@@ -52,12 +46,20 @@ jobs:
           exit 1
 
       - uses: actions/checkout@v4
+        with:
+          # Needed so `git diff <base>...HEAD` can resolve the merge base.
+          fetch-depth: 0
 
+      # Only the full run touches the cache. A pull request tests just the
+      # models it changed — which, being new, are not in the cache anyway — so
+      # restoring ~50 GB there costs several minutes and buys nothing.
       - name: Restore HuggingFace cache
-        uses: actions/cache@v4
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.HF_HOME }}
-          key: hf-models
+          key: hf-models-${{ github.run_id }}
+          restore-keys: hf-models
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
@@ -70,15 +72,21 @@ jobs:
       - name: Install development dependencies
         run: uv sync --dev --group model
 
-      - name: Pin transformers version
-        run: uv pip install 'transformers${{ matrix.transformers }}'
-
       - name: Show transformers version
         run: uv run --no-sync python -c "import transformers; print(f'transformers=={transformers.__version__}')"
 
+      # On a pull request, test only the models the diff affects; anything that
+      # cannot be mapped confidently falls back to the whole registry. The
+      # scheduled and manual runs always test everything.
       - name: Run model tests
         run: |
-          uv run --no-sync pytest tests/test_models.py \
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            select=(--changed-since "${{ github.event.pull_request.base.sha }}")
+          else
+            select=()
+          fi
+          uv run --no-sync pytest tests/ \
+            "${select[@]}" \
             -n auto \
             --dist loadgroup \
             --maxfail=3 \
@@ -86,9 +94,16 @@ jobs:
             --cov-report=xml \
             -v
 
+      - name: Save HuggingFace cache
+        if: github.event_name != 'pull_request' && success()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.HF_HOME }}
+          key: hf-models-${{ github.run_id }}
+
       - name: Upload coverage reports to Codecov
         if: always()
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          flags: models-transformers${{ matrix.transformers == '<5.0' && '4' || '5' }}
+          flags: models

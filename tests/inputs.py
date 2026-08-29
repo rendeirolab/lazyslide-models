@@ -48,6 +48,7 @@ class TilePredictionInputs(NamedTuple):
 
 class FeaturePredictionInputs(NamedTuple):
     features: np.ndarray  # (N, D) float32
+    coords: np.ndarray | None = None  # (N, 2) int64, only for needs_coords models
 
 
 class StyleTransferInputs(NamedTuple):
@@ -153,8 +154,19 @@ def make_feature_prediction(
     encoder_name = getattr(model, "features_model_name", None)
     encoder = MODEL_REGISTRY.get(encoder_name) if encoder_name else None
     feature_dim = getattr(encoder, "encode_dim", None) or 768
-    features = _RNG.standard_normal((2, feature_dim), dtype=np.float32)
-    return FeaturePredictionInputs(features)
+
+    if not getattr(model, "needs_coords", False):
+        return FeaturePredictionInputs(
+            _RNG.standard_normal((2, feature_dim), np.float32)
+        )
+
+    # Spatial models need a non-degenerate layout: two points would collapse
+    # one axis. Lay the tiles out on a small square grid instead.
+    side = 3
+    gy, gx = np.meshgrid(np.arange(side), np.arange(side), indexing="ij")
+    coords = np.stack([gx.ravel(), gy.ravel()], axis=1).astype(np.int64) * 256
+    features = _RNG.standard_normal((side * side, feature_dim), dtype=np.float32)
+    return FeaturePredictionInputs(features, coords)
 
 
 def make_style_transfer(model=None, size: int | None = None) -> StyleTransferInputs:

@@ -348,7 +348,8 @@ def test_predict(model_name: str, load_model, device: str) -> None:
     task = raw_task[0] if isinstance(raw_task, list) else raw_task
     inp = INPUT_FACTORY[task](model)
     value = _prepare_predict_input(model, inp[0], device)
-    out = model.predict(value)
+    coords = getattr(inp, "coords", None)
+    out = model.predict(value) if coords is None else model.predict(value, coords)
     VALIDATOR[task](out)
 
 
@@ -362,7 +363,8 @@ def test_predict_sizes(
     task = raw_task[0] if isinstance(raw_task, list) else raw_task
     inp = INPUT_FACTORY[task](model, size=image_size)
     value = _prepare_predict_input(model, inp[0], device)
-    out = model.predict(value)
+    coords = getattr(inp, "coords", None)
+    out = model.predict(value) if coords is None else model.predict(value, coords)
     VALIDATOR[task](out)
 
 

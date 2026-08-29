@@ -112,3 +112,21 @@ for weights in \
       ${folder_name}/${weights}
 done
 ```
+
+For STPath
+
+STPath needs its gene vocabulary, not a weight export -- the weights are
+downloaded from the authors' own `tlhuang/STPath` repo at run time and are not
+re-hosted (upstream declares no licence). Fetch the vocabulary first:
+
+```bash
+uv run scripts/export_models/fetch_stpath_assets.py
+```
+
+then upload it:
+
+```bash
+uv run hf upload RendeiroLab/LazySlide-models \
+  export_artifacts/symbol2ensembl.json \
+  STPath/symbol2ensembl.json
+```

@@ -42,7 +42,7 @@ class MUSK(
             raise ImportError(
                 "MUSK is not installed. You can install it using "
                 "`pip install git+https://github.com/lilab-stanford/MUSK`."
-            )
+            ) from None
 
         self.ms_aug = multiscale_augmentation
         self.with_head = with_head

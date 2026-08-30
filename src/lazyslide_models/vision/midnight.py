@@ -28,7 +28,7 @@ class Midnight(ImageModel):
             raise ImportError(
                 "transformers is not installed. You can install it using "
                 "`pip install transformers`."
-            )
+            ) from None
 
         with hf_access("kaiko-ai/midnight"):
             self.model = AutoModel.from_pretrained("kaiko-ai/midnight")

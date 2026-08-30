@@ -26,7 +26,7 @@ class GenBioPathFM(ImageModel):
             raise ImportError(
                 "transformers is not installed. You can install it using "
                 "`pip install transformers`."
-            )
+            ) from None
         self.model = AutoModel.from_pretrained(
             "genbio-ai/genbio-pathfm",
             trust_remote_code=True,

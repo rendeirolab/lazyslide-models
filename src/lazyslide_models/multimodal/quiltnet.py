@@ -21,7 +21,7 @@ class QuiltNet(ImageTextModel):
             raise ImportError(
                 "open_clip is not installed. You can install it using "
                 "`pip install open_clip_torch`."
-            )
+            ) from None
 
         self.model, _ = create_model_from_pretrained(f"hf-hub:{self._hf_hub_id}")
         self.model.eval()

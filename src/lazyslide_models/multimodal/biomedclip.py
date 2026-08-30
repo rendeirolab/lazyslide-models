@@ -28,7 +28,7 @@ class BiomedCLIP(ImageTextModel):
             raise ImportError(
                 "open_clip is not installed. You can install it using "
                 "`pip install open_clip_torch`."
-            )
+            ) from None
 
         self.model, self.processor = create_model_from_pretrained(
             f"hf-hub:{_HF_HUB_ID}"

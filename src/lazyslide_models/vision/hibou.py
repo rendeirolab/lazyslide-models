@@ -13,7 +13,7 @@ class Hibou(ImageModel):
             raise ImportError(
                 "transformers is not installed. You can install it using "
                 "`pip install transformers`."
-            )
+            ) from None
         require_transformers_below_5(
             "hibou",
             "Its remote code imports `transformers.onnx`, which was removed in "

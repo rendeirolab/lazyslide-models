@@ -7,6 +7,14 @@ The model zoo for [LazySlide](https://github.com/rendeirolab/LazySlide).
 ![conda version](https://img.shields.io/conda/vn/conda-forge/lazyslide-models?style=flat-square&logo=anaconda&logoColor=white&color=%2344A833)
 ![PyPI - License](https://img.shields.io/pypi/l/lazyslide-models?color=FFD43B&style=flat-square)
 
+## Model zoo
+
+Every registered model is browsable at
+[rendeiro.group/lazyslide-models](https://rendeiro.group/lazyslide-models/) —
+searchable by name, task, licence and gating, and embedded into the
+[LazySlide docs](https://lazyslide.readthedocs.io/en/latest/avail_models.html) from
+that same source. See [`site/`](site) for how it is built and embedded.
+
 ## Exported models
 
 Some models that cannot be loaded directly from huggingface are exported and uploaded to our own huggingface repository [https://huggingface.co/RendeiroLab/LazySlide-models](https://huggingface.co/RendeiroLab/LazySlide-models).

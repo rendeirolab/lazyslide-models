@@ -39,7 +39,7 @@ class CONCH(ImageTextModel):
             raise ImportError(
                 "Conch is not installed. You can install it using "
                 "`pip install git+https://github.com/mahmoodlab/CONCH.git`."
-            )
+            ) from None
 
         if model_path is None:
             model_path = "hf_hub:MahmoodLab/conch"

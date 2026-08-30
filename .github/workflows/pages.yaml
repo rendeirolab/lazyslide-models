@@ -1,0 +1,82 @@
+name: Publish model zoo
+
+# The catalogue is generated from the live model registry, so it only needs
+# rebuilding when the registry, the citations, or the site itself changes.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'site/**'
+      - 'references.bib'
+      - 'scripts/build_site.py'
+      - '.github/workflows/pages.yaml'
+  # A pull request builds the catalogue but publishes nothing, so a change
+  # that breaks the build is caught before it reaches main.
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'site/**'
+      - 'references.bib'
+      - 'scripts/build_site.py'
+      - '.github/workflows/pages.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time, and never cancel one mid-flight: a cancelled
+# deploy can leave the site on a half-published artifact.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Building the catalogue only reads class attributes, so the CPU wheels are
+  # enough — the CUDA build is ~2 GB of download for nothing.
+  UV_TORCH_BACKEND: cpu
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        # astral-sh publishes immutable releases and no longer moves major
+        # tags, so this must be an exact version — `@v10` does not exist.
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      # The `model` group pulls cellpose, diffusers and friends; importing the
+      # registry needs none of them.
+      - name: Install the package
+        run: uv sync --no-default-groups
+
+      - name: Generate the catalogue
+        run: uv run --no-sync python scripts/build_site.py
+
+      - uses: actions/configure-pages@v6
+        if: github.event_name != 'pull_request'
+
+      - uses: actions/upload-pages-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          path: site/
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

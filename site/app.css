@@ -1,0 +1,862 @@
+/* Hallmark · genre: modern-minimal · macrostructure: Catalogue · theme: custom
+ * pre-emit critique: P5 H5 E4 S5 R5 V5
+ * Tokens live in tokens.css; nothing here may inline a colour or a font.
+ */
+
+@import url("tokens.css");
+
+/* ── containment ───────────────────────────────────────────────────────
+   Every rule is scoped to .lsm-root so the widget can be dropped into a
+   Sphinx page without leaking out, and a short reset stops the host
+   theme's link/table/button styles from leaking in.                     */
+
+.lsm-root {
+  color: var(--lsm-ink);
+  background: var(--lsm-ground);
+  font-family: var(--lsm-font-body);
+  font-size: var(--lsm-text-md);
+  line-height: 1.55;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+}
+
+.lsm-root, .lsm-root :where(*, *::before, *::after) { box-sizing: border-box; }
+
+.lsm-root :where(h1, h2, h3, p, ul, ol, dl, dd, figure) { margin: 0; }
+.lsm-root :where(ul, ol) { padding: 0; list-style: none; }
+
+.lsm-root :where(a) {
+  color: var(--lsm-accent-ink);
+  text-decoration: none;
+  border-bottom: var(--lsm-hairline) solid transparent;
+  transition: border-color var(--lsm-dur-micro) var(--lsm-ease-out);
+}
+.lsm-root :where(a):hover { border-bottom-color: currentColor; }
+
+.lsm-root :where(button) {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.lsm-root :focus-visible {
+  /* Never transitioned: a keyboard user must see the ring on frame one. */
+  outline: 2px solid var(--lsm-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Embedded in the docs, the widget speaks the host page's voice for prose
+   and keeps only the mono register of its own. */
+.lsm-root[data-lsm-embedded] {
+  --lsm-font-body: inherit;
+  --lsm-font-display: inherit;
+  background: transparent;
+  margin-block: var(--lsm-space-lg);
+}
+
+.lsm-shell {
+  max-width: 78rem;
+  margin-inline: auto;
+  padding-inline: var(--lsm-gutter);
+}
+.lsm-root[data-lsm-embedded] .lsm-shell { padding-inline: 0; }
+
+.lsm-mono {
+  font-family: var(--lsm-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--lsm-text-xs);
+  letter-spacing: 0.01em;
+}
+
+.lsm-ico {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vertical-align: -0.14em;
+}
+
+.lsm-brand {
+  /* Published brand marks: solid on a 24 grid. Filled shapes read heavier
+     than a 1.4 stroke, so they sit a touch smaller to match optically. */
+  width: 0.92em;
+  height: 0.92em;
+  fill: currentColor;
+  stroke: none;
+}
+
+.lsm-sr {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── N9 · edge-aligned masthead (standalone only) ─────────────────────
+   Wordmark hard left, one destination hard right. The space between is
+   the design; filling it with a link row would make it an AI nav.       */
+
+.lsm-masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lsm-space-md);
+  padding-block: var(--lsm-space-lg);
+}
+
+.lsm-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lsm-space-sm);
+  color: var(--lsm-ink);
+  border: 0;
+}
+.lsm-wordmark:hover { border: 0; color: var(--lsm-accent-ink); }
+.lsm-wordmark img {
+  flex: none;
+  height: 3.1rem;
+  width: auto;
+  border-radius: 3px;
+}
+.lsm-wordmark h1 {
+  font-family: var(--lsm-font-display);
+  font-size: var(--lsm-text-lg);
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+}
+
+.lsm-masthead-link {
+  white-space: nowrap;
+  font-size: var(--lsm-text-sm);
+  padding: var(--lsm-space-xs) var(--lsm-space-sm);
+  border: var(--lsm-hairline) solid var(--lsm-rule-control);
+  border-radius: var(--lsm-radius-pill);
+  color: var(--lsm-ink);
+  transition: background-color var(--lsm-dur-micro) var(--lsm-ease-out),
+              border-color var(--lsm-dur-micro) var(--lsm-ease-out);
+}
+.lsm-masthead-link:hover {
+  background: var(--lsm-paper-3);
+  border-color: var(--lsm-accent);
+}
+.lsm-masthead-link:active { background: var(--lsm-accent-soft); }
+
+/* ── inventory header + stat strip ────────────────────────────────────
+   Catalogue voice: a count, a date, no display headline shouting.       */
+
+.lsm-headline {
+  font-family: var(--lsm-font-display);
+  font-size: var(--lsm-text-headline);
+  font-style: normal;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  padding-block: var(--lsm-space-lg) var(--lsm-space-md);
+}
+
+.lsm-lede {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lsm-space-sm) var(--lsm-space-lg);
+  padding-block: var(--lsm-space-md) var(--lsm-space-lg);
+  border-top: var(--lsm-hairline) solid var(--lsm-rule-strong);
+}
+
+/* The headline carries the display size now; the count steps down. */
+.lsm-count {
+  font-family: var(--lsm-font-display);
+  font-size: var(--lsm-text-xl);
+  font-style: normal;
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.lsm-count b { font-weight: 600; }
+
+.lsm-issue { color: var(--lsm-neutral); white-space: nowrap; }
+
+.lsm-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lsm-space-2xs) var(--lsm-space-md);
+  padding-block: var(--lsm-space-md);
+  border-top: var(--lsm-hairline) solid var(--lsm-rule);
+}
+
+.lsm-stat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lsm-space-2xs);
+  min-height: 44px;
+  padding: var(--lsm-space-2xs) var(--lsm-space-sm);
+  border-radius: var(--lsm-radius);
+  white-space: nowrap;
+  color: var(--lsm-muted);
+  transition: background-color var(--lsm-dur-micro) var(--lsm-ease-out),
+              color var(--lsm-dur-micro) var(--lsm-ease-out);
+}
+.lsm-stat:hover { background: var(--lsm-paper-2); color: var(--lsm-ink); }
+.lsm-stat:active { background: var(--lsm-paper-3); }
+.lsm-stat[aria-pressed="true"] {
+  background: var(--lsm-accent-soft);
+  color: var(--lsm-ink);
+}
+.lsm-stat[disabled] { opacity: 0.45; cursor: default; }
+.lsm-stat[disabled] b { color: var(--lsm-neutral); }
+.lsm-stat b {
+  font-family: var(--lsm-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--lsm-text-lg);
+  font-weight: 500;
+  color: var(--lsm-ink);
+}
+.lsm-stat i { font-style: normal; font-size: var(--lsm-text-sm); }
+
+
+/* ── controls ─────────────────────────────────────────────────────────  */
+
+.lsm-controls {
+  position: sticky;
+  top: 0;
+  z-index: var(--lsm-z-sticky);
+  padding-block: var(--lsm-space-sm);
+  background: var(--lsm-ground);
+  border-top: var(--lsm-hairline) solid var(--lsm-rule-strong);
+  border-bottom: var(--lsm-hairline) solid var(--lsm-rule);
+}
+.lsm-root[data-lsm-embedded] .lsm-controls { position: static; background: transparent; }
+
+.lsm-searchrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lsm-space-sm);
+}
+
+.lsm-search {
+  flex: 1 1 16rem;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--lsm-space-xs);
+  padding: var(--lsm-space-xs) var(--lsm-space-sm);
+  background: var(--lsm-paper);
+  border: var(--lsm-hairline) solid var(--lsm-rule-control);
+  border-radius: var(--lsm-radius);
+  transition: border-color var(--lsm-dur-micro) var(--lsm-ease-out);
+}
+.lsm-search:focus-within { border-color: var(--lsm-accent); }
+.lsm-search input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: var(--lsm-text-md);
+  color: var(--lsm-ink);
+  background: none;
+  border: 0;
+  min-height: 28px;
+}
+.lsm-search input::placeholder { color: var(--lsm-neutral); }
+.lsm-search input:focus { outline: none; }
+.lsm-search-key {
+  font-family: var(--lsm-font-mono);
+  font-size: var(--lsm-text-xs);
+  color: var(--lsm-neutral);
+}
+
+.lsm-showing {
+  font-family: var(--lsm-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--lsm-text-xs);
+  color: var(--lsm-neutral);
+  white-space: nowrap;
+}
+
+.lsm-facets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lsm-space-sm) var(--lsm-space-lg);
+  padding-top: var(--lsm-space-sm);
+}
+
+.lsm-facet { display: flex; flex-wrap: wrap; align-items: center; gap: var(--lsm-space-2xs); }
+
+.lsm-facet-label {
+  font-family: var(--lsm-font-mono);
+  font-size: var(--lsm-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lsm-neutral);
+  margin-right: var(--lsm-space-2xs);
+}
+
+.lsm-chip {
+  min-height: 32px;
+  padding: 0 var(--lsm-space-sm);
+  font-size: var(--lsm-text-sm);
+  color: var(--lsm-muted);
+  border: var(--lsm-hairline) solid var(--lsm-rule-control);
+  border-radius: var(--lsm-radius-pill);
+  white-space: nowrap;
+  transition: border-color var(--lsm-dur-micro) var(--lsm-ease-out),
+              background-color var(--lsm-dur-micro) var(--lsm-ease-out),
+              color var(--lsm-dur-micro) var(--lsm-ease-out);
+}
+.lsm-chip:hover { border-color: var(--lsm-accent); color: var(--lsm-ink); }
+.lsm-chip:active { background: var(--lsm-paper-3); }
+.lsm-chip[aria-pressed="true"] {
+  background: var(--lsm-accent-soft);
+  border-color: var(--lsm-accent);
+  color: var(--lsm-ink);
+}
+.lsm-chip[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.lsm-chip.is-icon {
+  gap: 0.35em;
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--lsm-space-xs);
+}
+.lsm-chip.is-icon .lsm-ico { font-size: var(--lsm-text-md); stroke-width: 2; }
+.lsm-chip.is-ok .lsm-ico { color: var(--lsm-ok); }
+.lsm-chip.is-no .lsm-ico { color: var(--lsm-no); }
+
+/* The access chips wear the tag's own colours, so the filter and the thing
+   it filters read as one vocabulary. */
+.lsm-chip.is-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+}
+.lsm-chip.is-status.is-ok { color: var(--lsm-ok); border-color: var(--lsm-ok); }
+.lsm-chip.is-status.is-no { color: var(--lsm-no); border-color: var(--lsm-no); }
+.lsm-chip.is-status.is-ok small,
+.lsm-chip.is-status.is-no small { color: inherit; opacity: 0.75; }
+.lsm-chip.is-ok[aria-pressed="true"] {
+  background: var(--lsm-ok-soft);
+  border-color: var(--lsm-ok);
+}
+.lsm-chip.is-no[aria-pressed="true"] {
+  background: var(--lsm-no-soft);
+  border-color: var(--lsm-no);
+}
+
+.lsm-chip small {
+  font-family: var(--lsm-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--lsm-text-xs);
+  color: var(--lsm-neutral);
+  margin-left: var(--lsm-space-2xs);
+}
+
+.lsm-reset {
+  min-height: 32px;
+  font-size: var(--lsm-text-sm);
+  color: var(--lsm-muted);
+  white-space: nowrap;
+  border-bottom: var(--lsm-hairline) solid var(--lsm-rule-control);
+}
+.lsm-reset:hover { color: var(--lsm-ink); border-bottom-color: var(--lsm-accent); }
+
+/* ── the catalogue ────────────────────────────────────────────────────
+   One model per line, hairline separation, no global CTA.               */
+
+/* One model per row, columns aligned because every row shares the template.
+   The title button stretches over the row to open the panel; the key button
+   sits above that layer and copies on its own. A <button> inside a <button>
+   is not markup a browser will honour. */
+.lsm-rows {
+  margin-block: var(--lsm-space-md) var(--lsm-space-lg);
+  border: var(--lsm-hairline) solid var(--lsm-rule);
+  background: var(--lsm-paper);
+}
+
+.lsm-row {
+  position: relative;
+  display: grid;
+  grid-template-columns:
+    minmax(13rem, 1.6fr)
+    minmax(0, 1.8fr)
+    minmax(7.5rem, 0.9fr)
+    minmax(4.5rem, 0.55fr)
+    minmax(6.5rem, 0.85fr)
+    5.6rem;
+  align-items: center;
+  gap: var(--lsm-space-sm);
+  padding: 0.3rem var(--lsm-space-sm);
+  border-bottom: var(--lsm-hairline) solid var(--lsm-rule);
+  transition: background-color var(--lsm-dur-micro) var(--lsm-ease-out);
+}
+.lsm-row:last-child { border-bottom: 0; }
+.lsm-row:not(.lsm-head):hover { background: var(--lsm-paper-2); }
+.lsm-row:has(.lsm-open:focus-visible) { background: var(--lsm-paper-2); }
+.lsm-row:has(.lsm-open:focus-visible)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  outline: 2px solid var(--lsm-focus);
+  outline-offset: -2px;
+  pointer-events: none;
+}
+
+.lsm-head {
+  font-family: var(--lsm-font-mono);
+  font-size: var(--lsm-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lsm-neutral);
+  background: var(--lsm-paper-2);
+  border-bottom-color: var(--lsm-rule-strong);
+}
+
+.lsm-cell { min-width: 0; }
+
+.lsm-cell-model {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: var(--lsm-space-xs);
+}
+
+.lsm-open {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+.lsm-open::after { content: ""; position: absolute; inset: 0; }
+.lsm-open:focus-visible { outline: none; }
+
+.lsm-name {
+  font-family: var(--lsm-font-display);
+  font-size: var(--lsm-text-md);
+  font-style: normal;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  /* The name is the recognition target, so it holds its width and the key
+     gives way first. Both keep a title, and the panel truncates neither. */
+  flex: 1 1 auto;
+  min-width: 4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lsm-keys {
+  display: flex;
+  flex: 0 1 auto;
+  gap: var(--lsm-space-2xs);
+  min-width: 0;
+  overflow: hidden;
+}
+.lsm-row .lsm-keycopy { min-width: 0; }
+.lsm-row .lsm-key {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The key is the string you paste into `model="..."`, so it is set as one
+   and lifts to the clickable layer above the row's own target. */
+.lsm-keycopy {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lsm-space-2xs);
+  min-width: 0;
+  padding: 1px var(--lsm-space-2xs);
+  border-radius: 4px;
+  color: var(--lsm-muted);
+  transition: background-color var(--lsm-dur-micro) var(--lsm-ease-out),
+              color var(--lsm-dur-micro) var(--lsm-ease-out);
+}
+.lsm-keycopy:hover { background: var(--lsm-paper-3); color: var(--lsm-ink); }
+.lsm-keycopy:active { background: var(--lsm-accent-soft); }
+.lsm-keycopy[data-state="done"] { color: var(--lsm-accent-ink); }
+.lsm-keycopy .lsm-ico-slot {
+  display: inline-flex;
+  opacity: 0;
+  font-size: var(--lsm-text-sm);
+  transition: opacity var(--lsm-dur-micro) var(--lsm-ease-out);
+}
+.lsm-row:hover .lsm-ico-slot,
+.lsm-keycopy:focus-visible .lsm-ico-slot,
+.lsm-keycopy[data-state] .lsm-ico-slot { opacity: 1; }
+/* Coarse pointers never hover, so the affordance is always shown there. */
+@media (hover: none) {
+  .lsm-keycopy .lsm-ico-slot { opacity: 1; }
+  .lsm-keycopy { min-height: 32px; }
+}
+
+.lsm-key {
+  font-family: var(--lsm-font-mono);
+  font-size: var(--lsm-text-xs);
+  overflow-wrap: anywhere;
+}
+.lsm-key::before { content: "\""; }
+.lsm-key::after { content: "\""; }
+
+.lsm-keycopy.is-lg { min-height: 34px; padding: 2px var(--lsm-space-xs); }
+.lsm-keycopy.is-lg .lsm-key { font-size: var(--lsm-text-md); color: var(--lsm-accent-ink); }
+.lsm-keycopy.is-lg .lsm-ico-slot { opacity: 1; font-size: var(--lsm-text-md); }
+
+.lsm-keybar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lsm-space-xs);
+  padding-block: var(--lsm-space-sm);
+}
+
+/* One line each: the row stays scannable, the panel carries the full text. */
+.lsm-desc,
+.lsm-cell-size,
+.lsm-cell-licence {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lsm-desc { font-size: var(--lsm-text-sm); color: var(--lsm-muted); }
+.lsm-cell-size,
+.lsm-cell-licence { color: var(--lsm-muted); }
+.lsm-cell-licence { display: flex; align-items: center; }
+.lsm-cell-licence > :first-child { overflow: hidden; text-overflow: ellipsis; }
+
+/* In a table the column header already names it, so the type needs no tag
+   chrome — plain text is denser and reads as a column, not a badge. */
+.lsm-cell-type {
+  font-size: var(--lsm-text-xs);
+  color: var(--lsm-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lsm-cell-access { display: flex; flex-wrap: wrap; gap: var(--lsm-space-2xs); }
+
+/* ── tags ────────────────────────────────────────────────────────────── */
+
+.lsm-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0 var(--lsm-space-xs);
+  font-family: var(--lsm-font-mono);
+  font-size: var(--lsm-text-xs);
+  line-height: 1.75;
+  color: var(--lsm-muted);
+  background: var(--lsm-paper-2);
+  border: var(--lsm-hairline) solid var(--lsm-rule);
+  border-radius: 4px;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lsm-tag.is-type { color: var(--lsm-ink); border-color: var(--lsm-rule-strong); }
+
+/* Access is a two-sided status, so both sides are tagged. Colour is never
+   the only carrier: each side has its own glyph and its own word. */
+.lsm-tag.is-ok,
+.lsm-tag.is-no { flex: none; }
+.lsm-tag.is-ok {
+  color: var(--lsm-ok);
+  background: var(--lsm-ok-soft);
+  border-color: var(--lsm-ok);
+}
+.lsm-tag.is-no {
+  color: var(--lsm-no);
+  background: var(--lsm-no-soft);
+  border-color: var(--lsm-no);
+}
+
+/* The commercial-use mark, always adjacent to the label it qualifies. */
+.lsm-mark {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  margin-left: 0.4em;
+  padding-left: 0.4em;
+  border-left: var(--lsm-hairline) solid var(--lsm-rule);
+}
+.lsm-mark .lsm-ico { stroke-width: 2; font-size: var(--lsm-text-sm); }
+.lsm-mark.is-ok { color: var(--lsm-ok); }
+.lsm-mark.is-no { color: var(--lsm-no); }
+.lsm-table .lsm-mark { margin: 0; padding: 0; border: 0; }
+
+.lsm-empty {
+  padding: var(--lsm-space-2xl) 0;
+  text-align: center;
+  color: var(--lsm-neutral);
+}
+
+/* ── F3 · detail panel, a spec sheet ──────────────────────────────────  */
+
+.lsm-panel {
+  width: min(44rem, calc(100vw - 2rem));
+  max-height: min(90dvh, 52rem);
+  padding: 0;
+  color: var(--lsm-ink);
+  background: var(--lsm-paper);
+  border: var(--lsm-hairline) solid var(--lsm-rule-strong);
+  border-radius: var(--lsm-radius);
+}
+.lsm-panel::backdrop { background: var(--lsm-scrim); }
+.lsm-panel[open] { animation: lsm-panel-in var(--lsm-dur-short) var(--lsm-ease-out); }
+@keyframes lsm-panel-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.lsm-panel-body { padding: var(--lsm-space-lg); }
+
+.lsm-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--lsm-space-md);
+  padding-bottom: var(--lsm-space-md);
+  border-bottom: var(--lsm-hairline) solid var(--lsm-rule-strong);
+}
+.lsm-panel-head .lsm-name { font-size: var(--lsm-text-xl); }
+
+.lsm-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px; height: 44px;
+  margin: calc(var(--lsm-space-xs) * -1);
+  border-radius: var(--lsm-radius);
+  color: var(--lsm-neutral);
+  transition: background-color var(--lsm-dur-micro) var(--lsm-ease-out);
+}
+.lsm-close:hover { background: var(--lsm-paper-2); color: var(--lsm-ink); }
+
+.lsm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  margin-block: var(--lsm-space-md);
+}
+.lsm-table tr { border-bottom: var(--lsm-hairline) solid var(--lsm-rule); }
+.lsm-table tr:last-child { border-bottom: 0; }
+.lsm-table th,
+.lsm-table td {
+  padding: var(--lsm-space-xs) 0;
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.lsm-table th {
+  width: 11rem;
+  font-family: var(--lsm-font-mono);
+  font-size: var(--lsm-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lsm-neutral);
+  padding-right: var(--lsm-space-md);
+}
+.lsm-table td { font-size: var(--lsm-text-sm); color: var(--lsm-ink); }
+
+.lsm-snippet {
+  position: relative;
+  margin-block: var(--lsm-space-md);
+  background: var(--lsm-paper-2);
+  border: var(--lsm-hairline) solid var(--lsm-rule);
+  border-radius: var(--lsm-radius);
+}
+.lsm-snippet pre {
+  margin: 0;
+  padding: var(--lsm-space-md);
+  padding-right: 6.5rem;
+  overflow-x: auto;
+  font-family: var(--lsm-font-mono);
+  font-size: var(--lsm-text-sm);
+  line-height: 1.7;
+  color: var(--lsm-ink);
+  background: none;
+  border: 0;
+}
+.lsm-snippet pre .lsm-cmt { color: var(--lsm-neutral); }
+
+.lsm-copy {
+  position: absolute;
+  top: var(--lsm-space-xs);
+  right: var(--lsm-space-xs);
+  min-height: 32px;
+  padding: 0 var(--lsm-space-sm);
+  font-family: var(--lsm-font-mono);
+  font-size: var(--lsm-text-xs);
+  color: var(--lsm-muted);
+  white-space: nowrap;
+  background: var(--lsm-paper);
+  border: var(--lsm-hairline) solid var(--lsm-rule-control);
+  border-radius: var(--lsm-radius);
+  transition: border-color var(--lsm-dur-micro) var(--lsm-ease-out),
+              color var(--lsm-dur-micro) var(--lsm-ease-out);
+}
+.lsm-copy:hover { border-color: var(--lsm-accent); color: var(--lsm-ink); }
+.lsm-copy:active { background: var(--lsm-paper-3); }
+.lsm-copy[data-state="done"] { color: var(--lsm-accent-ink); border-color: var(--lsm-accent); }
+.lsm-copy[data-state="error"] { color: var(--lsm-signal); border-color: var(--lsm-signal); }
+
+.lsm-sub {
+  font-family: var(--lsm-font-mono);
+  font-size: var(--lsm-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lsm-neutral);
+  padding-top: var(--lsm-space-sm);
+}
+
+.lsm-params th { width: 12rem; text-transform: none; letter-spacing: 0; }
+.lsm-params code,
+.lsm-table code {
+  font-family: var(--lsm-font-mono);
+  font-size: var(--lsm-text-xs);
+  color: var(--lsm-ink);
+  background: var(--lsm-paper-2);
+  border-radius: 3px;
+  padding: 0 0.3em;
+}
+.lsm-req { color: var(--lsm-signal); }
+
+.lsm-apitask {
+  font-family: var(--lsm-font-mono);
+  font-size: var(--lsm-text-xs);
+  color: var(--lsm-neutral);
+}
+.lsm-apitask::before { content: "("; }
+.lsm-apitask::after { content: ")"; }
+
+.lsm-cite {
+  font-size: var(--lsm-text-sm);
+  color: var(--lsm-muted);
+  padding-block: var(--lsm-space-sm);
+  border-top: var(--lsm-hairline) solid var(--lsm-rule);
+}
+.lsm-cite-title { color: var(--lsm-ink); }
+
+.lsm-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lsm-space-xs);
+  padding-top: var(--lsm-space-md);
+  border-top: var(--lsm-hairline) solid var(--lsm-rule-strong);
+}
+.lsm-links a,
+.lsm-links button {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0 var(--lsm-space-sm);
+  font-size: var(--lsm-text-sm);
+  white-space: nowrap;
+  color: var(--lsm-ink);
+  border: var(--lsm-hairline) solid var(--lsm-rule-control);
+  border-radius: var(--lsm-radius-pill);
+  transition: border-color var(--lsm-dur-micro) var(--lsm-ease-out),
+              background-color var(--lsm-dur-micro) var(--lsm-ease-out);
+}
+.lsm-links a:hover,
+.lsm-links button:hover { border-color: var(--lsm-accent); background: var(--lsm-paper-2); }
+
+/* ── Ft4 · dense colophon ─────────────────────────────────────────────  */
+
+.lsm-colophon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lsm-space-2xs) var(--lsm-space-lg);
+  padding-block: var(--lsm-space-md) var(--lsm-space-xl);
+  border-top: var(--lsm-hairline) solid var(--lsm-rule-strong);
+  color: var(--lsm-neutral);
+}
+.lsm-colophon a { color: var(--lsm-muted); border-bottom-color: var(--lsm-rule-strong); }
+.lsm-colophon a:hover { color: var(--lsm-accent-ink); }
+
+/* ── responsive ───────────────────────────────────────────────────────  */
+
+/* Below the layout breakpoint the columns stop fitting; the row becomes a
+   block that still reads top-to-bottom in the same order. */
+@media (max-width: 60rem) {
+  /* Same specificity as .lsm-row below, so it has to out-specify it. */
+  .lsm-row.lsm-head { display: none; }
+  /* Flex, not grid: the cells flow into three compact lines — name + access,
+     description, then the metadata wrapping together on one row. */
+  .lsm-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--lsm-space-2xs) var(--lsm-space-sm);
+    padding: var(--lsm-space-xs) var(--lsm-space-sm);
+  }
+  .lsm-cell-model { order: 1; flex: 1 1 auto; flex-wrap: wrap; }
+  .lsm-name { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+  .lsm-cell-access { order: 2; flex: none; margin-left: auto; }
+  .lsm-desc { order: 3; flex: 1 1 100%; white-space: normal; overflow: visible; }
+  .lsm-cell-type { order: 4; }
+  .lsm-cell-size { order: 5; }
+  .lsm-cell-licence { order: 6; }
+  .lsm-cell-type,
+  .lsm-cell-size,
+  .lsm-cell-licence {
+    flex: 0 1 auto;
+    font-size: var(--lsm-text-xs);
+    white-space: normal;
+    overflow: visible;
+  }
+  .lsm-cell-size:empty,
+  .lsm-cell-licence:empty { display: none; }
+}
+
+@media (max-width: 40rem) {
+  .lsm-lede { flex-direction: column; align-items: flex-start; }
+  .lsm-facets { gap: var(--lsm-space-sm); }
+  .lsm-panel-body { padding: var(--lsm-space-md); }
+  .lsm-table th { width: auto; display: block; padding-bottom: 0; }
+  .lsm-table td { display: block; padding-top: var(--lsm-space-2xs); }
+  .lsm-search-key { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lsm-root *,
+  .lsm-root *::before,
+  .lsm-root *::after {
+    animation-duration: 150ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 150ms !important;
+  }
+  .lsm-panel[open] { animation-name: lsm-fade-in; }
+  .lsm-row { transition: none; }
+  @keyframes lsm-fade-in { from { opacity: 0; } to { opacity: 1; } }
+}

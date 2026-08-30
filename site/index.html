@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LazySlide Model Zoo</title>
+<meta name="description" content="Search every model in the LazySlide model zoo — foundation models, segmentation, multimodal encoders and more — by task, licence and gating.">
+<meta property="og:title" content="LazySlide Model Zoo">
+<meta property="og:description" content="Every model in lazyslide-models, searchable by task, licence and gating.">
+<meta property="og:type" content="website">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600&display=swap">
+<link rel="stylesheet" href="app.css">
+<style>
+  /* Page ground only — every other value comes from tokens.css. */
+  html, body { overflow-x: clip; }
+  body { margin: 0; background: var(--lsm-page-ground); }
+</style>
+</head>
+<body>
+
+<div class="lsm-root" id="lsm-chrome">
+  <header class="lsm-shell lsm-masthead">
+    <a class="lsm-wordmark" href="https://lazyslide.readthedocs.io">
+      <img src="logo.svg" alt="" width="40" height="50">
+      <h1>lazyslide-models</h1>
+    </a>
+    <a class="lsm-masthead-link" href="https://github.com/rendeirolab/lazyslide-models">Source ↗</a>
+  </header>
+</div>
+
+<main id="lazyslide-models" data-lsm-standalone data-lsm-colophon>
+  <noscript>
+    <p style="padding:2rem;font-family:system-ui">
+      This catalogue is rendered in the browser. Without JavaScript, read the
+      <a href="https://lazyslide.readthedocs.io/en/latest/avail_models.html">model list in the LazySlide docs</a>
+      or the raw <a href="models.json">models.json</a>.
+    </p>
+  </noscript>
+</main>
+
+<script src="embed.js" defer></script>
+<script>
+  // The chrome sits outside the mounted widget, so it needs the same theme
+  // attribute the widget sets on itself.
+  (function () {
+    var chrome = document.getElementById("lsm-chrome");
+    var apply = function () {
+      chrome.dataset.lsmTheme =
+        matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    };
+    apply();
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", apply);
+  })();
+</script>
+</body>
+</html>

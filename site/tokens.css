@@ -1,0 +1,134 @@
+/* Hallmark · genre: modern-minimal · macrostructure: Catalogue · theme: custom
+ * vibe: "pathology model index, brand-warm technical density"
+ * ground oklch(95.5% 0.016 315) · paper oklch(99% 0.004 312)
+ * accent oklch(58% 0.150 312) lavender
+ * status oklch(48% 0.115 165) / oklch(53% 0.155 42) — Okabe-Ito pair
+ * signal oklch(47% 0.110 91) amber, for required arguments only
+ * axes: light paper / grotesk-sans display / chromatic-other (lavender 312)
+ * display Space Grotesk · body IBM Plex Sans · outlier JetBrains Mono
+ * nav: N9 edge-aligned minimal · footer: Ft4 dense colophon · enrichment: none
+ *
+ * Anchor hues are taken from the LazySlide brand: #C68FE6 (docs primary) and
+ * #FFCD05 (docs secondary), both from the sloth-on-a-moon logo.
+ */
+
+/* Two values live on :root as well as on .lsm-root: the standalone shell
+   paints outside .lsm-root and would otherwise show a seam, and ::backdrop
+   only inherits from its originating element in newer engines. */
+:root {
+  --lsm-page-ground: oklch(95.5% 0.016 315);
+  --lsm-scrim: oklch(22% 0.040 312 / 0.55);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --lsm-page-ground: oklch(15.5% 0.020 312);
+    --lsm-scrim: oklch(8% 0.020 312 / 0.66);
+  }
+}
+
+.lsm-root {
+  /* -- paper & ink --------------------------------------------------
+     The logo is a near-white card floating on a lilac gradient; the page
+     repeats that reading — ground is tinted, the model cards are not. */
+  --lsm-ground: oklch(95.5% 0.016 315);
+  --lsm-paper: oklch(99% 0.004 312);
+  --lsm-paper-2: oklch(96.5% 0.012 312);
+  --lsm-paper-3: oklch(93% 0.020 312);
+  --lsm-rule: oklch(86% 0.026 312);
+  --lsm-rule-strong: oklch(74% 0.036 312);
+  /* Control boundaries carry meaning, so they clear WCAG 1.4.11's 3:1 —
+     unlike --lsm-rule, which only separates rows. */
+  --lsm-rule-control: oklch(62% 0.030 312);
+  --lsm-neutral: oklch(51% 0.024 312);
+  --lsm-muted: oklch(44% 0.030 312);
+  --lsm-ink: oklch(24% 0.034 312);
+
+  /* -- signals ------------------------------------------------------ */
+  /* accent draws marks and borders; accent-ink is the same hue pushed dark
+     enough to clear 4.5:1 as running text. */
+  --lsm-accent: oklch(58% 0.150 312);
+  --lsm-accent-ink: oklch(48% 0.150 312);
+  --lsm-accent-soft: oklch(93% 0.038 312);
+  --lsm-signal: oklch(47% 0.110 91);
+  --lsm-signal-soft: oklch(93% 0.070 91);
+  /* Status pair, from the Okabe-Ito colour-blind-safe palette: bluish green
+     and vermillion. Verified distinguishable under deuteranopia, protanopia
+     and tritanopia, and never the only signal — each status also carries its
+     own glyph and its own word. */
+  --lsm-ok: oklch(48% 0.115 165);
+  --lsm-ok-soft: oklch(94.5% 0.030 165);
+  --lsm-no: oklch(53% 0.155 42);
+  --lsm-no-soft: oklch(94.5% 0.040 42);
+
+  --lsm-focus: oklch(52% 0.190 312);
+  /* Transparency as an overlay modifier, not as a palette colour. */
+  --lsm-scrim: oklch(22% 0.040 312 / 0.55);
+
+  /* -- type --------------------------------------------------------- */
+  --lsm-font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --lsm-font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --lsm-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --lsm-text-xs: 0.6875rem;
+  --lsm-text-sm: 0.8125rem;
+  --lsm-text-md: 0.9375rem;
+  --lsm-text-lg: 1.1875rem;
+  --lsm-text-xl: 1.5rem;
+  --lsm-text-display: clamp(1.75rem, 1.15rem + 2.4vw, 2.75rem);
+  /* The headline is one 28.3em-wide sentence. This scale keeps it on a
+     single line down to roughly 820px, then the floor lets it wrap. */
+  --lsm-text-headline: clamp(1.75rem, 3.1vw, 2.5rem);
+
+  /* -- 4pt space scale ---------------------------------------------- */
+  --lsm-space-2xs: 0.25rem;
+  --lsm-space-xs: 0.5rem;
+  --lsm-space-sm: 0.75rem;
+  --lsm-space-md: 1rem;
+  --lsm-space-lg: 1.5rem;
+  --lsm-space-xl: 2.25rem;
+  --lsm-space-2xl: 3.5rem;
+  --lsm-gutter: clamp(1rem, 4vw, 2.5rem);
+
+  /* -- form --------------------------------------------------------- */
+  --lsm-radius: 6px;
+  --lsm-radius-pill: 999px;
+  --lsm-hairline: 1px;
+
+  /* -- motion ------------------------------------------------------- */
+  --lsm-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --lsm-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --lsm-dur-micro: 120ms;
+  --lsm-dur-short: 220ms;
+  --lsm-dur-long: 420ms;
+
+  /* -- layering ----------------------------------------------------- */
+  --lsm-z-sticky: 10;
+  --lsm-z-panel: 20;
+}
+
+/* Dark: same anchor hue, only lightness and chroma move. */
+.lsm-root[data-lsm-theme="dark"] {
+  --lsm-ground: oklch(15.5% 0.020 312);
+  --lsm-paper: oklch(19.5% 0.023 312);
+  --lsm-paper-2: oklch(23.5% 0.025 312);
+  --lsm-paper-3: oklch(28% 0.028 312);
+  --lsm-rule: oklch(33% 0.026 312);
+  --lsm-rule-strong: oklch(45% 0.034 312);
+  --lsm-rule-control: oklch(53% 0.030 312);
+  --lsm-neutral: oklch(65% 0.022 312);
+  --lsm-muted: oklch(76% 0.018 312);
+  --lsm-ink: oklch(94% 0.012 312);
+
+  --lsm-accent: oklch(78% 0.115 312);
+  --lsm-accent-ink: oklch(80% 0.110 312);
+  --lsm-accent-soft: oklch(30% 0.045 312);
+  --lsm-signal: oklch(85% 0.130 91);
+  --lsm-signal-soft: oklch(31% 0.050 91);
+  --lsm-ok: oklch(78% 0.130 165);
+  --lsm-ok-soft: oklch(30% 0.045 165);
+  --lsm-no: oklch(76% 0.140 42);
+  --lsm-no-soft: oklch(30% 0.055 42);
+
+  --lsm-focus: oklch(80% 0.150 312);
+  --lsm-scrim: oklch(8% 0.020 312 / 0.66);
+}

@@ -76,6 +76,10 @@ deepspotm = { git = "https://github.com/ratschlab/DeepSpotM.git" }
 test = "pytest tests -v --tb=short"
 test-ci = "pytest tests -n 4 --dist loadgroup -v --tb=short --cov=src/lazyslide_models --cov-report=xml --cov-report=html"
 fmt = "ruff format src/lazyslide_models tests"
+# The model zoo site (see site/README.md). build-site regenerates the
+# catalogue from the live registry; serve-site rebuilds and previews it.
+build-site = "python scripts/build_site.py"
+serve-site = "python scripts/build_site.py && python -m http.server -b 127.0.0.1 -d site 8000"
 
 [tool.pytest.ini_options]
 markers = [

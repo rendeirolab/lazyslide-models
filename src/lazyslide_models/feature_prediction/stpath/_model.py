@@ -16,7 +16,6 @@ Module and attribute names are load-bearing: they are the keys of the released
 from __future__ import annotations
 
 import torch
-from einops import rearrange
 from torch import nn
 
 #: Reserved gene-token ids: 0 is padding, 1 is the mask used at inference.
@@ -46,6 +45,11 @@ class FrameAveraging(nn.Module):
 
     @staticmethod
     def _create_ops(dim: int) -> torch.Tensor:
+        # einops lives in the optional ``model`` dependency group, so it is
+        # imported where it is used — a module-level import would break
+        # ``import lazyslide_models`` for anyone on the base install.
+        from einops import rearrange
+
         directions = torch.tensor([-1, 1])
         accum = []
         for ind in range(dim):
@@ -103,6 +107,8 @@ class Attention(FrameAveraging):
         )
 
     def forward(self, x, coords, pad_mask=None):
+        from einops import rearrange
+
         B, N, C = x.shape
         q, k, v = self.layernorm_qkv(x).chunk(3, dim=-1)
         q, k, v = (

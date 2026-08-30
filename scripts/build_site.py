@@ -542,6 +542,16 @@ def main(argv: list[str] | None = None) -> int:
     # 0.0.4.post4.dev0+ec2942d is honest but unreadable in a header; keep the
     # exact string for the colophon and show the release it descends from.
     short = re.match(r"\d+\.\d+\.\d+", __version__)
+    if __version__.startswith("0.0.0"):
+        # Not fatal: a build from a source tarball has no tags either. But in
+        # CI it means the checkout was shallow, and the page would carry a
+        # version nobody can match to a release.
+        print(
+            f"warning: version resolved to {__version__} — no git tags visible. "
+            "In CI, check out with fetch-depth: 0.",
+            file=sys.stderr,
+        )
+
     payload = {
         "version": short.group(0) if short else __version__,
         "version_full": __version__,

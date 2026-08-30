@@ -138,8 +138,9 @@ venv.bak/
 # Rope project settings
 .ropeproject
 
-# mkdocs documentation
-/site
+# mkdocs documentation — this repo has no mkdocs; `site/` is the published
+# model zoo (see site/README.md), and only its generated data is ignored.
+site/models.json
 
 # mypy
 .mypy_cache/
@@ -181,3 +182,5 @@ sample_data/
 *.geojson
 *.zarr
 *_version.py
+# Local design-tool log (hallmark)
+.hallmark/

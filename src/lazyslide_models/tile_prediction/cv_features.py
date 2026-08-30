@@ -102,6 +102,7 @@ class CVCompose(_CVFeatures):
 @register(
     key="split_rgb",
     task=ModelTask.cv_feature,
+    description="Mean red, green and blue intensity of a tile",
 )
 class SplitRGB(_CVFeatures):
     """
@@ -131,6 +132,7 @@ class SplitRGB(_CVFeatures):
 @register(
     key="brightness",
     task=ModelTask.cv_feature,
+    description="Mean pixel intensity of a tile",
 )
 class Brightness(_CVFeatures):
     """
@@ -146,6 +148,7 @@ class Brightness(_CVFeatures):
 @register(
     key="contrast",
     task=ModelTask.cv_feature,
+    description="Standard deviation of pixel intensity",
 )
 class Contrast(_CVFeatures):
     """
@@ -183,6 +186,7 @@ class Contrast(_CVFeatures):
 @register(
     key="sharpness",
     task=ModelTask.cv_feature,
+    description="Variance of the Laplacian; higher means a sharper tile",
 )
 class Sharpness(_CVFeatures):
     """
@@ -206,6 +210,7 @@ class Sharpness(_CVFeatures):
 @register(
     key="sobel",
     task=ModelTask.cv_feature,
+    description="Variance of the Sobel gradient, an edge-strength measure",
 )
 class Sobel(_CVFeatures):
     """
@@ -239,6 +244,7 @@ class Sobel(_CVFeatures):
 @register(
     key="canny",
     task=ModelTask.cv_feature,
+    description="Variance of the Canny edge map",
 )
 class Canny(_CVFeatures):
     """
@@ -277,6 +283,7 @@ class Canny(_CVFeatures):
 @register(
     key="entropy",
     task=ModelTask.cv_feature,
+    description="Shannon entropy of pixel intensity, a texture-complexity measure",
 )
 class Entropy(_CVFeatures):
     """
@@ -311,6 +318,7 @@ class Entropy(_CVFeatures):
 @register(
     key="saturation",
     task=ModelTask.cv_feature,
+    description="Mean saturation of the HSV saturation channel",
 )
 class Saturation(_CVFeatures):
     """
@@ -338,6 +346,7 @@ class Saturation(_CVFeatures):
 @register(
     key="haralick_texture",
     task=ModelTask.cv_feature,
+    description="Haralick texture features from the gray-level co-occurrence matrix",
 )
 class HaralickTexture(_CVFeatures):
     """

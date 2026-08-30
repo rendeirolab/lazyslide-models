@@ -35,7 +35,7 @@ class PLIP(ImageTextModel):
         except ImportError:
             raise ImportError(
                 "Please install the 'transformers' package to use the PLIP model"
-            )
+            ) from None
 
         if model_path is None:
             model_path = "vinid/plip"

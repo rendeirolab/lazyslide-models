@@ -10,21 +10,20 @@
 ![PyPI - License](https://img.shields.io/pypi/l/lazyslide-models?color=FFD43B&style=flat-square)
 
 `lazyslide-models` contains all the models consumed by LazySlide. LazySlide
-itself contains no model code; it is an inference and orchestration layer that
+itself contains no model code, it is an inference and orchestration layer that
 discovers models through the `MODEL_REGISTRY`. Any registered model can be used
 by name with zero configuration.
 
 ## Model types
 
-The zoo spans 9 task types: vision encoders, multimodal (image-text) models,
+The zoo spans different task types: vision encoders, multimodal (image-text) models,
 segmentation, slide encoders, tile prediction, classical hand-crafted features,
-feature prediction, style transfer, and image generation. Every
-[timm](https://huggingface.co/timm) model is also available for feature
-extraction (e.g. `resnet50`).
+feature prediction, style transfer (HE to spatial omics or IHC stainings), image generation and chat models. Every
+[timm](https://huggingface.co/timm) model is also available for feature extraction (e.g. `resnet50`).
 
 The complete per-task model list, with licenses, gated-access badges and
 citation keys, is maintained in the
-[Model Zoo documentation](https://lazyslide.readthedocs.io/en/stable/avail_models.html).
+[Model Zoo Website](https://rendeiro.group/lazyslide-models/).
 
 ## Usage
 
@@ -54,12 +53,10 @@ Models that cannot be loaded directly from Hugging Face are exported to
 
 1. Open an [issue](https://github.com/rendeirolab/lazyslide-models/issues) with the
    `[New Model]` label to confirm the model fits the zoo.
-2. Follow the
-   [integration guide](https://lazyslide.readthedocs.io/en/stable/contributing/new_models.html).
-3. Open a pull request against `main`; CI tests the models your PR changes.
+2. Follow the [integration guide](https://lazyslide.readthedocs.io/en/stable/contributing/new_models.html).
+3. Open a pull request against `main`. The CI will test the models in your PR.
 
 ## Licenses
 
 Some models are non-commercial or gated, and licenses vary. Check each model's
-registry entry (`MODEL_REGISTRY.to_dataframe()`) before use, and cite the
-original paper.
+registry entry before use, and please cite the original paper.

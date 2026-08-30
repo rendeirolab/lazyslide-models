@@ -189,6 +189,9 @@ def license_family(text: str | None) -> str | None:
         ("cc-by-nc-nd", "CC BY-NC-ND"),
         ("cc-by-nc-sa", "CC BY-NC-SA"),
         ("cc-by-nc", "CC BY-NC"),
+        # Before "gpl", which is a substring of it.
+        ("agpl", "AGPL"),
+        ("lgpl", "LGPL"),
         ("gpl", "GPL"),
         ("apache", "Apache 2.0"),
         ("bsd", "BSD"),
@@ -239,6 +242,8 @@ LICENSE_URLS = {
     "MIT": "https://opensource.org/license/mit",
     "Apache 2.0": "https://www.apache.org/licenses/LICENSE-2.0",
     "BSD": "https://opensource.org/license/bsd-3-clause",
+    "AGPL": "https://www.gnu.org/licenses/agpl-3.0.html",
+    "LGPL": "https://www.gnu.org/licenses/lgpl-3.0.html",
     "GPL": "https://www.gnu.org/licenses/gpl-3.0.html",
     "CC BY-NC": "https://creativecommons.org/licenses/by-nc/4.0/",
     "CC BY-NC-SA": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
@@ -391,12 +396,12 @@ def collect_models(citations: dict[str, dict]) -> list[dict]:
         constraint = getattr(cls, "input_constraint", None)
         bib_key = getattr(cls, "bib_key", None)
         params = init_params(cls)
-        categories = []
+        category_tasks: dict[str, list[str]] = {}
         for t in tasks:
             category = CATEGORY.get(t)
-            if category and category not in categories:
-                categories.append(category)
-        categories.sort(key=CATEGORY_ORDER.index)
+            if category:
+                category_tasks.setdefault(category, []).append(t)
+        categories = sorted(category_tasks, key=CATEGORY_ORDER.index)
         # No example unless the docstring carries one: a fabricated snippet
         # is a guess about an API this script cannot verify.
         example = docstring_example(cls)
@@ -406,6 +411,9 @@ def collect_models(citations: dict[str, dict]) -> list[dict]:
             "module": cls.__module__,
             "tasks": tasks,
             "categories": categories,
+            # category -> the ModelTask values that put it there, so the page
+            # never has to guess which task a category came from.
+            "category_tasks": category_tasks,
             "example": example,
             "is_gated": bool(getattr(cls, "is_gated", False)),
             "commercial": getattr(cls, "commercial", None),
@@ -503,6 +511,18 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"error: raw Sphinx markup survived into: {', '.join(leaked)} "
             "— extend strip_rst()",
+            file=sys.stderr,
+        )
+        return 1
+
+    dangling = [
+        f"{m['name']} ({m['bib_key']})"
+        for m in models
+        if m["bib_key"] and not m["citation"]
+    ]
+    if dangling:
+        print(
+            f"error: bib_key not found in {args.bib.name}: {', '.join(dangling)}",
             file=sys.stderr,
         )
         return 1

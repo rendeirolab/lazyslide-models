@@ -90,6 +90,39 @@ def test_descriptions_are_free_of_sphinx_markup(payload):
         assert "``" not in text
 
 
+@pytest.mark.parametrize(
+    ("declared", "family"),
+    [
+        # "agpl-3.0" contains "gpl", so ordering inside license_family matters.
+        ("AGPL-3.0", "AGPL"),
+        ("LGPL-2.1", "LGPL"),
+        ("GPL-3.0", "GPL"),
+        ("Apache 2.0", "Apache 2.0"),
+        ("MIT", "MIT"),
+        # A dual licence takes the more restrictive half.
+        ("Apache 2.0; CC-BY-NC-SA-4.0", "CC BY-NC-SA"),
+        ("Owkin non-commercial license", "Custom"),
+    ],
+)
+def test_license_family_is_not_fooled_by_substrings(declared, family):
+    assert build_site.license_family(declared) == family
+    assert build_site.LICENSE_URLS.get(family) or family == "Custom"
+
+
+def test_category_tasks_account_for_every_task(payload):
+    """The page reads the task off this map, so it must not drop or invent one.
+
+    Two tasks can share a category (cv_feature and tile_prediction both land
+    in "Tile prediction"), and the category list is sorted independently of
+    the task list — so the pairing has to be recorded, not inferred.
+    """
+    for model in payload["models"]:
+        mapping = model["category_tasks"]
+        assert sorted(mapping) == sorted(model["categories"])
+        paired = sorted(t for tasks in mapping.values() for t in tasks)
+        assert paired == sorted(model["tasks"]), model["name"]
+
+
 def test_stats_describe_the_published_list(payload):
     models = payload["models"]
     stats = payload["stats"]

@@ -96,6 +96,15 @@
   // scripts/build_site.py, next to the registry that defines them. Nothing
   // here decides what a model is or how it is called.
 
+  // Shown only when both clipboard paths fail and the text is left selected.
+  var COPY_KEY = /mac|iphone|ipad/i.test(
+    (navigator.userAgentData && navigator.userAgentData.platform) ||
+      navigator.platform ||
+      ""
+  )
+    ? "\u2318C"
+    : "Ctrl+C";
+
   var USE_LABEL = {
     commercial: "Commercial use allowed",
     noncommercial: "Commercial use not allowed"
@@ -419,8 +428,11 @@
     }
     // Access is already stated by the tag beside the key, and the API task
     // rides along so `list_models("vision")` stays discoverable.
-    row("type", raw(model.categories.map(function (c, i) {
-      return html`${c} <span class="lsm-apitask">${model.tasks[i % model.tasks.length]}</span>`;
+    row("type", raw(model.categories.map(function (c) {
+      // The pairing comes from build_site.py: a category can be reached by
+      // more than one task, and the category list is sorted independently.
+      return html`${c} <span class="lsm-apitask"
+        >${model.category_tasks[c].join(", ")}</span>`;
     }).join(", ")));
     row("parameters", model.param_size);
     row("embedding dim", model.encode_dim);
@@ -590,7 +602,7 @@
     var done = function () { flash(button, label, true); };
     var failed = function () {
       if (selectAndCopy(text, button)) done();
-      else flash(button, "Press ⌘C", false);
+      else flash(button, "Press " + COPY_KEY, false);
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(done, failed);

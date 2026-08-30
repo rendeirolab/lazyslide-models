@@ -154,8 +154,10 @@ class STPath(FeaturePredictionModel):
             import einops  # noqa: F401
         except ImportError:
             raise ImportError(
-                "STPath requires einops. You can install it using `pip install einops`."
-            )
+                "STPath requires einops. You can install it using "
+                "`pip install einops`, or `uv sync --group model` for the "
+                "full set of optional model dependencies."
+            ) from None
 
         self.organ_id = _encode_organ(organ_type)
         self.tech_id = _encode_tech(tech_type)

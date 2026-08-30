@@ -10,7 +10,7 @@ The model zoo for [LazySlide](https://github.com/rendeirolab/LazySlide).
 ## Model zoo
 
 Every registered model is browsable at
-[rendeirolab.github.io/lazyslide-models](https://rendeirolab.github.io/lazyslide-models/) —
+[rendeiro.group/lazyslide-models](https://rendeiro.group/lazyslide-models/) —
 searchable by name, task, licence and gating, and embedded into the
 [LazySlide docs](https://lazyslide.readthedocs.io/en/latest/avail_models.html) from
 that same source. See [`site/`](site) for how it is built and embedded.

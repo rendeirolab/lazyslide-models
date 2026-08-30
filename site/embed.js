@@ -14,7 +14,7 @@
   var SELF = document.currentScript;
   var BASE = new URL(".", SELF ? SELF.src : location.href);
   var MOUNT_ID = "lazyslide-models";
-  var HOME = "https://rendeirolab.github.io/lazyslide-models/";
+  var HOME = "https://rendeiro.group/lazyslide-models/";
   var REPO = "https://github.com/rendeirolab/lazyslide-models";
   var DOCS = "https://lazyslide.readthedocs.io";
 

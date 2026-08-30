@@ -1,7 +1,11 @@
 # Model zoo site
 
 The searchable catalogue published at
-<https://rendeirolab.github.io/lazyslide-models/>.
+<https://rendeiro.group/lazyslide-models/>.
+
+The organisation has a verified custom domain, so project pages are served
+from `rendeiro.group/<repo>/`, not `rendeirolab.github.io/<repo>/` — that host
+301s to this one. Use the custom domain in links and in the embed snippet.
 
 | File | What it is |
 | --- | --- |
@@ -46,8 +50,8 @@ The same `embed.js` renders inside any host page. In
 ````markdown
 ```{raw} html
 <div id="lazyslide-models"></div>
-<noscript><a href="https://rendeirolab.github.io/lazyslide-models/">Browse the model zoo</a></noscript>
-<script src="https://rendeirolab.github.io/lazyslide-models/embed.js" defer></script>
+<noscript><a href="https://rendeiro.group/lazyslide-models/">Browse the model zoo</a></noscript>
+<script src="https://rendeiro.group/lazyslide-models/embed.js" defer></script>
 ```
 ````
 

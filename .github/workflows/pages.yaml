@@ -44,6 +44,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # uv-dynamic-versioning reads the version off the git tags, and the
+          # default shallow checkout fetches none — which published the site
+          # labelled v0.0.0.
+          fetch-depth: 0
 
       - name: Set up uv
         # astral-sh publishes immutable releases and no longer moves major

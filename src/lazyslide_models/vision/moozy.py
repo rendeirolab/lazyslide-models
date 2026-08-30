@@ -38,7 +38,7 @@ class Moozy(SlideEncoderModel):
         except ImportError:
             raise ImportError(
                 "moozy is not installed. You can install it using `pip install moozy`."
-            )
+            ) from None
 
         device = torch.device("cpu")
         checkpoint_path = ensure_checkpoint()

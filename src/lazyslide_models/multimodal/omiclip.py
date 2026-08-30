@@ -40,7 +40,7 @@ class OmiCLIP(ImageTextModel):
             raise ImportError(
                 "open_clip is not installed. You can install it using "
                 "`pip install open_clip_torch`."
-            )
+            ) from None
 
         if model_path is None:
             with hf_access("WangGuangyuLab/Loki"):

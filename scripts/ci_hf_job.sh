@@ -47,10 +47,11 @@ export NUMEXPR_NUM_THREADS="${NUMEXPR_NUM_THREADS:-1}"
 export TORCH_NUM_THREADS="${TORCH_NUM_THREADS:-1}"
 
 # Word-split is intentional: CI_PYTEST_ARGS is a space-separated argv fragment.
+# Cap workers so a full-registry fallback does not OOM cpu-upgrade (32 GB).
 # shellcheck disable=SC2086
 uv run --no-sync pytest tests/ \
   ${CI_PYTEST_ARGS:-} \
-  -n auto \
+  -n "${CI_XDIST_WORKERS:-4}" \
   --dist loadgroup \
   --maxfail=3 \
   -v

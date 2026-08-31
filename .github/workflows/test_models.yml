@@ -42,10 +42,11 @@ env:
   HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
 jobs:
-  # GitHub larger runner: PRs, the weekly sweep, and workflow_dispatch backend=github.
+  # GitHub larger runner: weekly sweep and workflow_dispatch backend=github.
+  # PR runs use HF Jobs (test-models-hf) — issue #20 milestone 4.
   test-models:
     name: Test models
-    if: github.event_name != 'workflow_dispatch' || github.event.inputs.backend == 'github'
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.backend == 'github')
     runs-on: linux-cpu8-300g
     steps:
       - name: Check User Permission
@@ -95,18 +96,11 @@ jobs:
       - name: Show transformers version
         run: uv run --no-sync python -c "import transformers; print(f'transformers=={transformers.__version__}')"
 
-      # On a pull request, test only the models the diff affects; anything that
-      # cannot be mapped confidently falls back to the whole registry. The
-      # scheduled and manual runs always test everything.
+      # Scheduled and backend=github always test everything. PR selection
+      # lives on the HF Jobs job.
       - name: Run model tests
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            select=(--changed-since "${{ github.event.pull_request.base.sha }}")
-          else
-            select=()
-          fi
           uv run --no-sync pytest tests/ \
-            "${select[@]}" \
             -n auto \
             --dist loadgroup \
             --maxfail=3 \
@@ -115,7 +109,7 @@ jobs:
             -v
 
       - name: Save HuggingFace cache
-        if: github.event_name != 'pull_request' && success()
+        if: success()
         uses: actions/cache/save@v6
         with:
           path: ${{ env.HF_HOME }}
@@ -128,11 +122,10 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: models
 
-  # Hugging Face Jobs prototype (issue #20). PR runs stay on the GitHub
-  # runner until the compare on the same commit is written on the issue.
+  # Hugging Face Jobs: pull requests and workflow_dispatch backend=hf-jobs.
   test-models-hf:
     name: Test models (HF Jobs)
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.backend == 'hf-jobs'
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.backend == 'hf-jobs')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -167,14 +160,22 @@ jobs:
             echo "HF_TOKEN secret is empty; cannot start a Job." >&2
             exit 1
           fi
-          SHA="${{ github.event.inputs.sha }}"
-          if [ -z "${SHA}" ]; then
-            SHA="${{ github.sha }}"
-          fi
-          MODELS="${{ github.event.inputs.models }}"
+          SHA="${{ github.sha }}"
           PYTEST_ARGS=""
-          if [ -n "${MODELS}" ]; then
-            PYTEST_ARGS="--models ${MODELS}"
+          BASE_SHA=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            SHA="${{ github.event.pull_request.head.sha }}"
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            PYTEST_ARGS="--changed-since ${BASE_SHA}"
+          else
+            SHA="${{ github.event.inputs.sha }}"
+            if [ -z "${SHA}" ]; then
+              SHA="${{ github.sha }}"
+            fi
+            MODELS="${{ github.event.inputs.models }}"
+            if [ -n "${MODELS}" ]; then
+              PYTEST_ARGS="--models ${MODELS}"
+            fi
           fi
           uvx --from huggingface_hub hf jobs run \
             --namespace RendeiroLab \
@@ -182,6 +183,7 @@ jobs:
             --timeout 30m \
             --secrets HF_TOKEN \
             --env "CI_SHA=${SHA}" \
+            --env "CI_BASE_SHA=${BASE_SHA}" \
             --env "CI_PYTEST_ARGS=${PYTEST_ARGS}" \
             ghcr.io/astral-sh/uv:python3.12-bookworm \
             bash -c "$(cat scripts/ci_hf_job.sh)"

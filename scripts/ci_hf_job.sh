@@ -6,6 +6,7 @@
 # Required env:
 #   CI_SHA           git commit to test
 # Optional env:
+#   CI_BASE_SHA      PR base commit, fetched so --changed-since can diff
 #   CI_REPO_URL      default: https://github.com/rendeirolab/lazyslide-models.git
 #   CI_PYTEST_ARGS   extra pytest args, e.g. --models plip
 #                    or --changed-since <base-sha>
@@ -26,8 +27,14 @@ fi
 
 git clone --filter=blob:none "${REPO_URL}" "${WORKDIR}"
 cd "${WORKDIR}"
-git fetch --depth 1 origin "${SHA}"
+# Need ancestors of HEAD (and CI_BASE_SHA) so `git diff BASE...HEAD` can
+# resolve a merge base. A depth-1 fetch would make --changed-since fall
+# back to the whole registry.
+git fetch --filter=blob:none origin "${SHA}"
 git checkout --force FETCH_HEAD
+if [ -n "${CI_BASE_SHA:-}" ]; then
+  git fetch --filter=blob:none origin "${CI_BASE_SHA}"
+fi
 
 uv sync --dev --group model
 

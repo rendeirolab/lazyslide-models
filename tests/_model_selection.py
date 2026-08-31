@@ -50,9 +50,10 @@ def _is_irrelevant(path: Path) -> bool:
       never deselected, so its ``bib_key`` check still runs for every model.
     - ``scripts/`` — one-off weight-export scripts, never imported by the suite.
     - ``*.md`` — documentation.
+    - ``.github/`` — workflow YAML cannot change weight-loading tests.
 
     Everything else outside the package (``tests/``, ``pyproject.toml``,
-    ``uv.lock``, workflows) still selects everything.
+    ``uv.lock``) still selects everything.
     """
     parts = path.parts
     return (
@@ -61,6 +62,7 @@ def _is_irrelevant(path: Path) -> bool:
         # No `scripts` directory exists inside the package, so this cannot
         # accidentally swallow a model file.
         or "scripts" in parts
+        or parts[0] == ".github"
     )
 
 

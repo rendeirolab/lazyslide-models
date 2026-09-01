@@ -10,6 +10,8 @@
 #   CI_REPO_URL      default: https://github.com/rendeirolab/lazyslide-models.git
 #   CI_PYTEST_ARGS   extra pytest args, e.g. --models plip
 #                    or --changed-since <base-sha>
+#   CI_DEVICE        cpu (default) or cuda; cuda also probes GPU before pytest
+#   CI_XDIST_WORKERS pytest -n (default 4; GPU jobs should pass 1)
 set -euo pipefail
 
 REPO_URL="${CI_REPO_URL:-https://github.com/rendeirolab/lazyslide-models.git}"
@@ -36,7 +38,17 @@ if [ -n "${CI_BASE_SHA:-}" ]; then
   git fetch --filter=blob:none origin "${CI_BASE_SHA}"
 fi
 
+if [ "${CI_DEVICE:-cpu}" = "cuda" ]; then
+  export UV_TORCH_BACKEND="${UV_TORCH_BACKEND:-cu124}"
+fi
+
 uv sync --dev --group model
+
+if [ "${CI_DEVICE:-cpu}" = "cuda" ]; then
+  uv run --no-sync python -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'; print(torch.cuda.get_device_name(0))"
+  # Slide-encoder tests need flash-attn. Fail honestly if it will not install.
+  uv pip install flash-attn --no-build-isolation
+fi
 
 # cpu-upgrade advertises many more BLAS threads than it has vCPUs. xdist
 # workers each try to spawn a full OpenBLAS pool and then pthread_create fails.
@@ -48,6 +60,12 @@ export TORCH_NUM_THREADS="${TORCH_NUM_THREADS:-1}"
 
 # Word-split is intentional: CI_PYTEST_ARGS is a space-separated argv fragment.
 # Cap workers so a full-registry fallback does not OOM cpu-upgrade (32 GB).
+if [ "${CI_DEVICE:-cpu}" = "cuda" ]; then
+  case " ${CI_PYTEST_ARGS:-} " in
+    *" --device "*) ;;
+    *) CI_PYTEST_ARGS="${CI_PYTEST_ARGS:-} --device cuda" ;;
+  esac
+fi
 # shellcheck disable=SC2086
 uv run --no-sync pytest tests/ \
   ${CI_PYTEST_ARGS:-} \

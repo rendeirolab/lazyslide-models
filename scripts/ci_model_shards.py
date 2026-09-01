@@ -15,7 +15,7 @@ import argparse
 import json
 import sys
 
-DEFAULT_SPLITS = 9
+DEFAULT_SPLITS = 18
 
 
 def build_groups(splits: int = DEFAULT_SPLITS) -> list[dict[str, str]]:
@@ -30,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
         "--splits",
         type=int,
         default=DEFAULT_SPLITS,
-        help="pytest-split --splits (default: 9)",
+        help="pytest-split --splits (default: 18)",
     )
     args = parser.parse_args(argv)
     json.dump(build_groups(args.splits), sys.stdout, separators=(",", ":"))

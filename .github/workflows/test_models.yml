@@ -189,7 +189,7 @@ jobs:
             fi
           fi
           SHARDS='[]'
-          SPLITS=9
+          SPLITS=18
           if [ "${MODE}" = "sharded" ]; then
             SHARDS="$(python3 scripts/ci_model_shards.py --splits "${SPLITS}")"
           fi
@@ -274,6 +274,7 @@ jobs:
             --timeout 30m \
             --secrets HF_TOKEN \
             --env "CI_SHA=${{ needs.decide.outputs.sha }}" \
+            --env "CI_XDIST_WORKERS=1" \
             --env "CI_PYTEST_ARGS=--splits ${{ needs.decide.outputs.splits }} --group ${{ matrix.shard.group }} --splitting-algorithm least_duration" \
             ghcr.io/astral-sh/uv:python3.12-bookworm \
             bash -c "$(cat scripts/ci_hf_job.sh)"

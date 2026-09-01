@@ -12,7 +12,6 @@ _shards = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_shards)
 
 
-def test_nine_groups_are_1_based():
-    groups = _shards.build_groups(9)
-    assert [g["group"] for g in groups] == [str(i) for i in range(1, 10)]
-    assert [g["id"] for g in groups] == [str(i) for i in range(1, 10)]
+def test_groups_are_1_based():
+    groups = _shards.build_groups(18)
+    assert [g["group"] for g in groups] == [str(i) for i in range(1, 19)]

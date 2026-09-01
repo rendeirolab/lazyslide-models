@@ -133,6 +133,7 @@ jobs:
       sha: ${{ steps.plan.outputs.sha }}
       base_sha: ${{ steps.plan.outputs.base_sha }}
       pytest_args: ${{ steps.plan.outputs.pytest_args }}
+      splits: ${{ steps.plan.outputs.splits }}
       shards: ${{ steps.plan.outputs.shards }}
     steps:
       - name: Check User Permission
@@ -188,15 +189,17 @@ jobs:
             fi
           fi
           SHARDS='[]'
+          SPLITS=9
           if [ "${MODE}" = "sharded" ]; then
-            SHARDS="$(python3 scripts/ci_model_shards.py)"
+            SHARDS="$(python3 scripts/ci_model_shards.py --splits "${SPLITS}")"
           fi
-          echo "HF Jobs mode=${MODE} sha=${SHA}"
+          echo "HF Jobs mode=${MODE} sha=${SHA} splits=${SPLITS}"
           {
             echo "mode=${MODE}"
             echo "sha=${SHA}"
             echo "base_sha=${BASE_SHA}"
             echo "pytest_args=${PYTEST_ARGS}"
+            echo "splits=${SPLITS}"
             echo "shards<<SHARD_EOF"
             echo "${SHARDS}"
             echo "SHARD_EOF"
@@ -264,14 +267,14 @@ jobs:
             echo "HF_TOKEN secret is empty; cannot start a Job." >&2
             exit 1
           fi
-          echo "HF Jobs flavor=cpu-upgrade shard=${{ matrix.shard.id }} models=${{ matrix.shard.models }}"
+          echo "HF Jobs flavor=cpu-upgrade pytest-split group=${{ matrix.shard.group }}/${{ needs.decide.outputs.splits }}"
           uvx --from huggingface_hub hf jobs run \
             --namespace RendeiroLab \
             --flavor cpu-upgrade \
             --timeout 30m \
             --secrets HF_TOKEN \
             --env "CI_SHA=${{ needs.decide.outputs.sha }}" \
-            --env "CI_PYTEST_ARGS=--models ${{ matrix.shard.models }}" \
+            --env "CI_PYTEST_ARGS=--splits ${{ needs.decide.outputs.splits }} --group ${{ matrix.shard.group }} --splitting-algorithm least_duration" \
             ghcr.io/astral-sh/uv:python3.12-bookworm \
             bash -c "$(cat scripts/ci_hf_job.sh)"
 

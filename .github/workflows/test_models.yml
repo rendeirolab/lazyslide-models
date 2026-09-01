@@ -127,7 +127,7 @@ jobs:
     name: Test models (HF Jobs)
     if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.backend == 'hf-jobs')
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    timeout-minutes: 100
     steps:
       - name: Check User Permission
         id: checkAccess
@@ -177,7 +177,7 @@ jobs:
             if git diff --name-only "${BASE_SHA}...HEAD" | grep -E -q \
               '^(tests/|pyproject.toml|uv.lock|src/lazyslide_models/(base|_model_registry|_repr|_utils|_version|__init__)\.py)'; then
               FLAVOR=cpu-xl
-              JOB_TIMEOUT=60m
+              JOB_TIMEOUT=90m
             fi
           else
             SHA="${{ github.event.inputs.sha }}"

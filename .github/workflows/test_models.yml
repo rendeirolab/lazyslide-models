@@ -6,9 +6,9 @@ on:
         description: Where to run model tests
         type: choice
         options:
-          - github
           - hf-jobs
-        default: github
+          - github
+        default: hf-jobs
       models:
         description: hf-jobs only. Comma-separated --models list (empty = all)
         type: string

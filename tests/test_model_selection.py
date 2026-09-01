@@ -57,9 +57,8 @@ def test_core_module_selects_everything(core):
         "tests/inputs.py",
         "pyproject.toml",
         "uv.lock",
-        ".github/workflows/test_models.yml",
     ],
-    ids=["tests", "packaging", "lockfile", "workflow"],
+    ids=["tests", "packaging", "lockfile"],
 )
 def test_paths_outside_the_package_select_everything(path):
     assert changed_models([path]) is None
@@ -123,8 +122,8 @@ def test_shared_helper_selects_the_whole_model_directory():
 
 @pytest.mark.parametrize(
     "path",
-    ["references.bib", "README.md", "scripts/export_models/export_grandqc.py"],
-    ids=["citations", "docs", "export-script"],
+    ["references.bib", "README.md", "scripts/export_models/export_grandqc.py", ".github/workflows/test_models.yml"],
+    ids=["citations", "docs", "export-script", "workflow"],
 )
 def test_irrelevant_paths_select_nothing(path):
     """These cannot affect a weight test, so they must not force a full run."""

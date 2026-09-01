@@ -1,6 +1,22 @@
 name: Test LazySlide Models
 on:
   workflow_dispatch:
+    inputs:
+      backend:
+        description: Where to run model tests
+        type: choice
+        options:
+          - hf-jobs
+          - github
+        default: hf-jobs
+      models:
+        description: hf-jobs only. Comma-separated --models list (empty = all)
+        type: string
+        default: plip
+      sha:
+        description: Commit to test on hf-jobs (empty = this workflow SHA)
+        type: string
+        default: ""
   schedule:
     - cron: '0 0 * * 0' # Every Sunday at midnight UTC
   pull_request:
@@ -26,8 +42,11 @@ env:
   HF_TOKEN: ${{ secrets.HF_TOKEN }}
 
 jobs:
+  # GitHub larger runner: weekly sweep and workflow_dispatch backend=github.
+  # PR runs use HF Jobs (test-models-hf) — issue #20 milestone 4.
   test-models:
     name: Test models
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.backend == 'github')
     runs-on: linux-cpu8-300g
     steps:
       - name: Check User Permission
@@ -77,18 +96,11 @@ jobs:
       - name: Show transformers version
         run: uv run --no-sync python -c "import transformers; print(f'transformers=={transformers.__version__}')"
 
-      # On a pull request, test only the models the diff affects; anything that
-      # cannot be mapped confidently falls back to the whole registry. The
-      # scheduled and manual runs always test everything.
+      # Scheduled and backend=github always test everything. PR selection
+      # lives on the HF Jobs job.
       - name: Run model tests
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            select=(--changed-since "${{ github.event.pull_request.base.sha }}")
-          else
-            select=()
-          fi
           uv run --no-sync pytest tests/ \
-            "${select[@]}" \
             -n auto \
             --dist loadgroup \
             --maxfail=3 \
@@ -97,7 +109,7 @@ jobs:
             -v
 
       - name: Save HuggingFace cache
-        if: github.event_name != 'pull_request' && success()
+        if: success()
         uses: actions/cache/save@v6
         with:
           path: ${{ env.HF_HOME }}
@@ -109,3 +121,82 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: models
+
+  # Hugging Face Jobs: pull requests and workflow_dispatch backend=hf-jobs.
+  test-models-hf:
+    name: Test models (HF Jobs)
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.backend == 'hf-jobs')
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - name: Check User Permission
+        id: checkAccess
+        uses: actions-cool/check-user-permission@v2
+        with:
+          require: write
+          username: ${{ github.triggering_actor }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Abort if unauthorized
+        if: steps.checkAccess.outputs.require-result == 'false'
+        run: |
+          echo "${{ github.triggering_actor }} does not have permissions on this repo."
+          exit 1
+
+      - uses: actions/checkout@v7
+        with:
+          # Needed so a PR can `git diff base...HEAD` to pick the Job flavor.
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          python-version: "3.12"
+
+      - name: Run model tests on Hugging Face Jobs
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN}" ]; then
+            echo "HF_TOKEN secret is empty; cannot start a Job." >&2
+            exit 1
+          fi
+          SHA="${{ github.sha }}"
+          PYTEST_ARGS=""
+          BASE_SHA=""
+          FLAVOR=cpu-upgrade
+          JOB_TIMEOUT=30m
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            SHA="${{ github.event.pull_request.head.sha }}"
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            PYTEST_ARGS="--changed-since ${BASE_SHA}"
+            # tests/, packaging, or core modules select the whole registry
+            # (#19 fail-safe). That does not fit in cpu-upgrade's 32 GB.
+            if git diff --name-only "${BASE_SHA}...HEAD" | grep -E -q \
+              '^(tests/|pyproject.toml|uv.lock|src/lazyslide_models/(base|_model_registry|_repr|_utils|_version|__init__)\.py)'; then
+              FLAVOR=cpu-xl
+              JOB_TIMEOUT=90m
+            fi
+          else
+            SHA="${{ github.event.inputs.sha }}"
+            if [ -z "${SHA}" ]; then
+              SHA="${{ github.sha }}"
+            fi
+            MODELS="${{ github.event.inputs.models }}"
+            if [ -n "${MODELS}" ]; then
+              PYTEST_ARGS="--models ${MODELS}"
+            fi
+          fi
+          echo "HF Jobs flavor=${FLAVOR} timeout=${JOB_TIMEOUT} sha=${SHA}"
+          uvx --from huggingface_hub hf jobs run \
+            --namespace RendeiroLab \
+            --flavor "${FLAVOR}" \
+            --timeout "${JOB_TIMEOUT}" \
+            --secrets HF_TOKEN \
+            --env "CI_SHA=${SHA}" \
+            --env "CI_BASE_SHA=${BASE_SHA}" \
+            --env "CI_PYTEST_ARGS=${PYTEST_ARGS}" \
+            ghcr.io/astral-sh/uv:python3.12-bookworm \
+            bash -c "$(cat scripts/ci_hf_job.sh)"

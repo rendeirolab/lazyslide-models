@@ -50,8 +50,8 @@ env:
   HF_TOKEN: ${{ secrets.HF_TOKEN }}
   # tests/, packaging, or core modules select the whole registry (#19).
   FAILSAFE_DIFF: '^(tests/|pyproject.toml|uv.lock|src/lazyslide_models/(base|_model_registry|_repr|_utils|_version|__init__)\.py)'
-  # Matches CUDA_ONLY_SLIDE_ENCODERS in tests/test_models.py
-  GPU_MODELS: gigapath-slide-encoder,gigapath-flash-slide-encoder
+  # CUDA slide encoders plus models whose large-size / generate tests skip on CPU.
+  GPU_MODELS: gigapath-slide-encoder,gigapath-flash-slide-encoder,cellpose,cytosyn
 
 jobs:
   # Emergency fallback only. Sunday and PRs use HF Jobs.
@@ -293,7 +293,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run CUDA slide-encoder tests on t4-small
+      - name: Run CUDA model tests on t4-small
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -310,7 +310,7 @@ jobs:
           uvx --from huggingface_hub hf jobs run \
             --namespace RendeiroLab \
             --flavor t4-small \
-            --timeout 20m \
+            --timeout 30m \
             --secrets HF_TOKEN \
             --env "CI_SHA=${SHA}" \
             --env "CI_DEVICE=cuda" \

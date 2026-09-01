@@ -18,7 +18,7 @@ on:
         type: boolean
         default: false
       gpu:
-        description: Also run the t4-small CUDA job (slide encoders)
+        description: Also run the t4-small CUDA job (slide encoders, cellpose, cytosyn)
         type: boolean
         default: false
       sha:

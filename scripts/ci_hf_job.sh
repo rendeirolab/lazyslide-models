@@ -22,7 +22,12 @@ if ! command -v git >/dev/null 2>&1; then
   apt-get update -qq
   apt-get install -y -qq git
 fi
+# The uv image already has uv. The CUDA pytorch image has neither uv nor curl.
 if ! command -v uv >/dev/null 2>&1; then
+  if ! command -v curl >/dev/null 2>&1; then
+    apt-get update -qq
+    apt-get install -y -qq curl ca-certificates
+  fi
   curl -LsSf https://astral.sh/uv/install.sh | sh
   export PATH="${HOME}/.local/bin:${PATH}"
 fi

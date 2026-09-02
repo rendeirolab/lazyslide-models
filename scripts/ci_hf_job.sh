@@ -34,6 +34,13 @@ if ! command -v uv >/dev/null 2>&1; then
   curl -LsSf https://astral.sh/uv/install.sh | sh
   export PATH="${HOME}/.local/bin:${PATH}"
 fi
+# CUDA runtime images have no Python. uv would pick 3.14, then compile
+# ecos (no wheel) and fail because there is no cc. Pin 3.12 like the uv image.
+# cpu-upgrade already ships 3.12; skip the extra install there.
+if [ "${CI_DEVICE:-cpu}" = "cuda" ]; then
+  export UV_PYTHON="${UV_PYTHON:-3.12}"
+  uv python install
+fi
 
 git clone --filter=blob:none "${REPO_URL}" "${WORKDIR}"
 cd "${WORKDIR}"
@@ -54,8 +61,11 @@ if [ "${CI_DEVICE:-cpu}" = "cuda" ]; then
   uv run --no-sync python -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'; print(torch.cuda.get_device_name(0))"
 fi
 if [ "${CI_INSTALL_FLASH_ATTN:-}" = "1" ]; then
-  # Slide-encoder tests need flash-attn. Fail honestly if it will not install.
-  uv pip install flash-attn --no-build-isolation
+  # PyPI ships sdist only. Astral has a cu13 + torch 2.11 wheel.
+  # --no-build fails in seconds if the wheel is missing instead of compiling.
+  uv pip install "flash-attn==2.8.3.post1+cu.13.0.torch.2.11" \
+    --index "https://wheels.astral.sh/simple/cu130/" \
+    --no-build
 fi
 
 # cpu-upgrade advertises many more BLAS threads than it has vCPUs. xdist

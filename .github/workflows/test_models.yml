@@ -18,7 +18,7 @@ on:
         type: boolean
         default: false
       gpu:
-        description: Also run the t4-small CUDA job (slide encoders, cellpose, cytosyn)
+        description: Also run t4-small CUDA jobs (slide encoders + flash-attn; cellpose and cytosyn smoke generate 20 steps)
         type: boolean
         default: false
       sha:
@@ -48,10 +48,12 @@ env:
   HF_HOME: /home/runner/.cache/huggingface
   HF_XET_HIGH_PERFORMANCE: "1"
   HF_TOKEN: ${{ secrets.HF_TOKEN }}
-  # tests/, packaging, or core modules select the whole registry (#19).
-  FAILSAFE_DIFF: '^(tests/|pyproject.toml|uv.lock|src/lazyslide_models/(base|_model_registry|_repr|_utils|_version|__init__)\.py)'
-  # CUDA slide encoders plus models whose large-size / generate tests skip on CPU.
-  GPU_MODELS: gigapath-slide-encoder,gigapath-flash-slide-encoder,cellpose,cytosyn
+  # tests/, packaging, core modules, this workflow, or the HF job payload
+  # select the whole registry (#19). tests/test_ci_model_shards.py is dropped
+  # after the match so a helper-only diff stays selective.
+  FAILSAFE_DIFF: '^(tests/|pyproject.toml|uv.lock|src/lazyslide_models/(base|_model_registry|_repr|_utils|_version|__init__)\.py|\.github/workflows/test_models\.yml|scripts/ci_hf_job\.sh|scripts/ci_model_shards\.py)'
+  GPU_SLIDE_MODELS: gigapath-slide-encoder,gigapath-flash-slide-encoder
+  GPU_SEG_GEN_MODELS: cellpose,cytosyn
 
 jobs:
   # Emergency fallback only. Sunday and PRs use HF Jobs.
@@ -169,7 +171,11 @@ jobs:
             SHA="${{ github.event.pull_request.head.sha }}"
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
             PYTEST_ARGS="--changed-since ${BASE_SHA}"
-            if git diff --name-only "${BASE_SHA}...HEAD" | grep -E -q "${FAILSAFE_DIFF}"; then
+            CHANGED="$(git diff --name-only "${BASE_SHA}...HEAD")"
+            FAILSAFE_FILES="$(printf '%s\n' "${CHANGED}" | grep -E "${FAILSAFE_DIFF}" || true)"
+            FAILSAFE_FILES="$(printf '%s\n' "${FAILSAFE_FILES}" | grep -v '^tests/test_ci_model_shards.py$' || true)"
+            FAILSAFE_FILES="$(printf '%s\n' "${FAILSAFE_FILES}" | sed '/^$/d')"
+            if [ -n "${FAILSAFE_FILES}" ]; then
               MODE=sharded
             fi
           else
@@ -188,10 +194,11 @@ jobs:
               fi
             fi
           fi
+          PLAN="$(python3 scripts/ci_model_shards.py)"
+          SPLITS="$(python3 -c "import json,sys; print(json.load(sys.stdin)['splits'])" <<< "${PLAN}")"
           SHARDS='[]'
-          SPLITS=18
           if [ "${MODE}" = "sharded" ]; then
-            SHARDS="$(python3 scripts/ci_model_shards.py --splits "${SPLITS}")"
+            SHARDS="$(python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['shards'], separators=(',', ':')))" <<< "${PLAN}")"
           fi
           echo "HF Jobs mode=${MODE} sha=${SHA} splits=${SPLITS}"
           {
@@ -275,16 +282,18 @@ jobs:
             --secrets HF_TOKEN \
             --env "CI_SHA=${{ needs.decide.outputs.sha }}" \
             --env "CI_XDIST_WORKERS=1" \
-            --env "CI_PYTEST_ARGS=--splits ${{ needs.decide.outputs.splits }} --group ${{ matrix.shard.group }} --splitting-algorithm least_duration" \
+            --env "CI_PYTEST_ARGS=--splits ${{ needs.decide.outputs.splits }} --group ${{ matrix.shard.group }}" \
+            --env "CI_CODECOV=${{ github.event_name == 'schedule' && '1' || '' }}" \
+            --env "CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }}" \
             ghcr.io/astral-sh/uv:python3.12-bookworm \
             bash -c "$(cat scripts/ci_hf_job.sh)"
 
-  test-models-hf-gpu:
-    name: Test models (HF Jobs GPU)
+  test-models-hf-gpu-slide:
+    name: Test models (HF Jobs GPU slide)
     needs: decide
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.gpu == 'true' && github.event.inputs.backend == 'hf-jobs')
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v7
 
@@ -293,7 +302,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run CUDA model tests on t4-small
+      - name: Run CUDA slide-encoder tests on t4-small
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -306,15 +315,56 @@ jobs:
           if [ -z "${SHA}" ]; then
             SHA="${{ github.sha }}"
           fi
-          echo "HF Jobs flavor=t4-small models=${GPU_MODELS} sha=${SHA}"
+          echo "HF Jobs flavor=t4-small models=${GPU_SLIDE_MODELS} sha=${SHA}"
           uvx --from huggingface_hub hf jobs run \
             --namespace RendeiroLab \
             --flavor t4-small \
-            --timeout 30m \
+            --timeout 60m \
+            --secrets HF_TOKEN \
+            --env "CI_SHA=${SHA}" \
+            --env "CI_DEVICE=cuda" \
+            --env "CI_INSTALL_FLASH_ATTN=1" \
+            --env "CI_XDIST_WORKERS=1" \
+            --env "CI_PYTEST_ARGS=--models ${GPU_SLIDE_MODELS} --device cuda" \
+            pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel \
+            bash -c "$(cat scripts/ci_hf_job.sh)"
+
+  test-models-hf-gpu-seg:
+    name: Test models (HF Jobs GPU cellpose)
+    needs: decide
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.gpu == 'true' && github.event.inputs.backend == 'hf-jobs')
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          python-version: "3.12"
+
+      - name: Run CUDA cellpose and cytosyn tests on t4-small
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN}" ]; then
+            echo "HF_TOKEN secret is empty; cannot start a Job." >&2
+            exit 1
+          fi
+          SHA="${{ needs.decide.outputs.sha }}"
+          if [ -z "${SHA}" ]; then
+            SHA="${{ github.sha }}"
+          fi
+          echo "HF Jobs flavor=t4-small models=${GPU_SEG_GEN_MODELS} sha=${SHA}"
+          uvx --from huggingface_hub hf jobs run \
+            --namespace RendeiroLab \
+            --flavor t4-small \
+            --timeout 40m \
             --secrets HF_TOKEN \
             --env "CI_SHA=${SHA}" \
             --env "CI_DEVICE=cuda" \
             --env "CI_XDIST_WORKERS=1" \
-            --env "CI_PYTEST_ARGS=--models ${GPU_MODELS} --device cuda" \
+            --env "CI_PYTEST_ARGS=--models ${GPU_SEG_GEN_MODELS} --device cuda" \
             pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel \
             bash -c "$(cat scripts/ci_hf_job.sh)"

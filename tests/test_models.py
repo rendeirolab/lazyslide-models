@@ -9,7 +9,8 @@ implements — no changes to this file required.
 Each image-consuming method also has a ``_sizes`` variant that feeds the
 model images at 224, 256, 448 and 512 to verify the transform handles
 non-native spatial sizes correctly. On ``--device cpu``, ``test_segment_sizes``
-skips sizes above 256 (Cellpose-SAM at 448/512 is a GPU job).
+skips Cellpose-SAM sizes above 256 (448/512 is a GPU job). Other segmenters
+still run every size on CPU.
 
 Device is configured via ``--device`` CLI flag (default: cpu).
 Gated models carry the ``gated`` mark so they can be filtered with
@@ -55,9 +56,11 @@ CUDA_ONLY_SLIDE_ENCODERS = frozenset(
     {"gigapath-slide-encoder", "gigapath-flash-slide-encoder"}
 )
 
-# Cellpose-SAM at 448/512 is ~25 min on cpu-upgrade. CPU CI covers <=256;
-# weekly t4-small runs the rest via --device cuda.
-CPU_MAX_SEGMENT_SIZE = 256
+# Cellpose-SAM at 448/512 is ~25 min on cpu-upgrade. CPU CI covers <=256
+# for that model only; weekly t4-small runs 448/512 via --device cuda.
+CPU_MAX_CELLPOSE_SEGMENT_SIZE = 256
+GENERATE_SMOKE_STEPS_CPU = 2
+GENERATE_SMOKE_STEPS_CUDA = 20
 
 # ── Shared image-prep helper ────────────────────────────────────────────────
 
@@ -265,10 +268,14 @@ def test_segment_sizes(
     model_name: str, image_size: int, load_model, device: str
 ) -> None:
     """segment() must return a dict with canonical keys for various input sizes."""
-    if device == "cpu" and image_size > CPU_MAX_SEGMENT_SIZE:
+    if (
+        model_name == "cellpose"
+        and device == "cpu"
+        and image_size > CPU_MAX_CELLPOSE_SEGMENT_SIZE
+    ):
         pytest.skip(
-            f"segment at {image_size} is CUDA-only; CPU CI covers "
-            f"<={CPU_MAX_SEGMENT_SIZE}"
+            f"cellpose segment at {image_size} is CUDA-only; CPU CI covers "
+            f"<={CPU_MAX_CELLPOSE_SEGMENT_SIZE}"
         )
     model = load_model(model_name)
     inp = INPUT_FACTORY[ModelTask.segmentation](model, size=image_size)
@@ -421,10 +428,11 @@ def test_style_transfer_sizes(
 def test_image_generation(model_name: str, load_model, device: str) -> None:
     """generate() must return non-None.
 
-    Two inference steps is a smoke test (diffusers CI practice). Production
-    defaults like CytoSyn's 250 steps are not a unit-test contract.
+    Smoke test (diffusers CI practice): 2 steps on CPU, 20 on CUDA.
+    Production defaults like CytoSyn's 250 steps are not a unit-test contract.
     """
+    steps = GENERATE_SMOKE_STEPS_CPU if device == "cpu" else GENERATE_SMOKE_STEPS_CUDA
     model = load_model(model_name)
     with torch.inference_mode():
-        out = model.generate(num_inference_steps=2)
+        out = model.generate(num_inference_steps=steps)
     VALIDATOR[ModelTask.image_generation](out)

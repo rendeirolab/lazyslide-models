@@ -13,5 +13,13 @@ _spec.loader.exec_module(_shards)
 
 
 def test_groups_are_1_based():
-    groups = _shards.build_groups(18)
-    assert [g["group"] for g in groups] == [str(i) for i in range(1, 19)]
+    groups = _shards.build_groups(_shards.DEFAULT_SPLITS)
+    assert [g["group"] for g in groups] == [
+        str(i) for i in range(1, _shards.DEFAULT_SPLITS + 1)
+    ]
+
+
+def test_plan_embeds_splits_and_shards():
+    plan = _shards.build_plan(_shards.DEFAULT_SPLITS)
+    assert plan["splits"] == _shards.DEFAULT_SPLITS
+    assert plan["shards"] == _shards.build_groups(_shards.DEFAULT_SPLITS)

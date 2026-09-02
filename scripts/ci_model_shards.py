@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """Emit pytest-split group ids for Hugging Face Jobs (issue #20).
 
-The full suite is split by *test*, not by model name, so slow cases
-(e.g. cellpose image sizes) can land on different Jobs. pytest-split's
-``least_duration`` packs by recorded times when ``.test_durations`` exists;
-without that file every test is treated as average duration (round-robin).
+This script does not chunk models. It only prints 1-based group ids for
+``pytest --splits N --group K``. The full suite is split by *test*, so
+slow cases (e.g. cellpose image sizes) can land on different Jobs.
 
-Stdout: JSON array of ``{"id": "1", "group": "1"}`` (1-based).
+Without a committed ``.test_durations`` file, pytest-split even-splits by
+test count. Do not pass ``--splitting-algorithm least_duration`` until
+that file exists.
+
+Stdout: JSON object ``{"splits": N, "shards": [{"id": "1", "group": "1"}, ...]}``.
 """
 
 from __future__ import annotations
@@ -24,16 +27,20 @@ def build_groups(splits: int = DEFAULT_SPLITS) -> list[dict[str, str]]:
     return [{"id": str(i), "group": str(i)} for i in range(1, splits + 1)]
 
 
+def build_plan(splits: int = DEFAULT_SPLITS) -> dict[str, object]:
+    return {"splits": splits, "shards": build_groups(splits)}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--splits",
         type=int,
         default=DEFAULT_SPLITS,
-        help="pytest-split --splits (default: 18)",
+        help=f"pytest-split --splits (default: {DEFAULT_SPLITS})",
     )
     args = parser.parse_args(argv)
-    json.dump(build_groups(args.splits), sys.stdout, separators=(",", ":"))
+    json.dump(build_plan(args.splits), sys.stdout, separators=(",", ":"))
     sys.stdout.write("\n")
     return 0
 

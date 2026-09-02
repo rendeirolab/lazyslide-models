@@ -122,8 +122,14 @@ def test_shared_helper_selects_the_whole_model_directory():
 
 @pytest.mark.parametrize(
     "path",
-    ["references.bib", "README.md", "scripts/export_models/export_grandqc.py", ".github/workflows/test_models.yml"],
-    ids=["citations", "docs", "export-script", "workflow"],
+    [
+        "references.bib",
+        "README.md",
+        "scripts/export_models/export_grandqc.py",
+        ".github/workflows/test_models.yml",
+        "tests/test_ci_model_shards.py",
+    ],
+    ids=["citations", "docs", "export-script", "workflow", "ci-shard-helper"],
 )
 def test_irrelevant_paths_select_nothing(path):
     """These cannot affect a weight test, so they must not force a full run."""

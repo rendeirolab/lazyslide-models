@@ -189,14 +189,28 @@ def pytest_collection_modifyitems(
     _deselect_unselected(config, items)
     items.sort(key=_model_sort_key)
 
-    # Pre-count tests per model for eviction tracking
+    for item in items:
+        name = _extract_model_name(item.nodeid)
+        if name:
+            # Pin all tests of this model to the same xdist worker
+            item.add_marker(pytest.mark.xdist_group(name))
+    # Eviction counts are rebuilt in pytest_collection_finish, after
+    # pytest-split (and xdist) have dropped items. Counting here with
+    # tryfirst=True sees the full suite; remaining never hits 0, the
+    # session cache keeps every loaded model, and cpu-upgrade OOMs.
+
+
+def _recount_remaining(items: list[pytest.Item]) -> None:
+    """Rebuild per-model remaining counts from the final item list."""
     _model_remaining.clear()
     for item in items:
         name = _extract_model_name(item.nodeid)
         if name:
             _model_remaining[name] += 1
-            # Pin all tests of this model to the same xdist worker
-            item.add_marker(pytest.mark.xdist_group(name))
+
+
+def pytest_collection_finish(session: pytest.Session) -> None:
+    _recount_remaining(session.items)
 
 
 # ── Session fixtures ──────────────────────────────────────────────────────────

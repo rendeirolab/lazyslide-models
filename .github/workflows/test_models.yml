@@ -10,9 +10,17 @@ on:
           - github
         default: hf-jobs
       models:
-        description: hf-jobs only. Comma-separated --models list (empty = all)
+        description: hf-jobs only. Comma-separated --models list (empty = all shards)
         type: string
         default: plip
+      full:
+        description: hf-jobs only. Shard the whole registry (ignore models)
+        type: boolean
+        default: false
+      gpu:
+        description: Also run CUDA jobs (l4x1 slide encoders + flash-attn; t4-small cellpose and cytosyn smoke generate 20 steps)
+        type: boolean
+        default: false
       sha:
         description: Commit to test on hf-jobs (empty = this workflow SHA)
         type: string
@@ -25,6 +33,9 @@ on:
       - 'src/lazyslide_models/**'
       - 'tests/**'
       - 'pyproject.toml'
+      - 'uv.lock'
+      - 'scripts/ci_hf_job.sh'
+      - 'scripts/ci_model_shards.py'
 
 # Testing every model downloads tens of GB, so a superseded run is expensive to
 # leave running. There is deliberately no `push` trigger: a merge would re-run
@@ -36,17 +47,20 @@ concurrency:
 
 env:
   HF_HOME: /home/runner/.cache/huggingface
-  # Enable fast Xet-based downloads when available
   HF_XET_HIGH_PERFORMANCE: "1"
-  # HF_TOKEN is read natively by huggingface_hub — no login step needed
   HF_TOKEN: ${{ secrets.HF_TOKEN }}
+  # tests/, packaging, core modules, this workflow, or the HF job payload
+  # select the whole registry (#19). tests/test_ci_model_shards.py is dropped
+  # after the match so a helper-only diff stays selective.
+  FAILSAFE_DIFF: '^(tests/|pyproject.toml|uv.lock|src/lazyslide_models/(base|_model_registry|_repr|_utils|_version|__init__)\.py|\.github/workflows/test_models\.yml|scripts/ci_hf_job\.sh|scripts/ci_model_shards\.py)'
+  GPU_SLIDE_MODELS: gigapath-slide-encoder,gigapath-flash-slide-encoder
+  GPU_SEG_GEN_MODELS: cellpose,cytosyn
 
 jobs:
-  # GitHub larger runner: weekly sweep and workflow_dispatch backend=github.
-  # PR runs use HF Jobs (test-models-hf) — issue #20 milestone 4.
+  # Emergency fallback only. Sunday and PRs use HF Jobs.
   test-models:
     name: Test models
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.backend == 'github')
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.backend == 'github'
     runs-on: linux-cpu8-300g
     steps:
       - name: Check User Permission
@@ -66,14 +80,9 @@ jobs:
 
       - uses: actions/checkout@v7
         with:
-          # Needed so `git diff <base>...HEAD` can resolve the merge base.
           fetch-depth: 0
 
-      # Only the full run touches the cache. A pull request tests just the
-      # models it changed — which, being new, are not in the cache anyway — so
-      # restoring ~50 GB there costs several minutes and buys nothing.
       - name: Restore HuggingFace cache
-        if: github.event_name != 'pull_request'
         uses: actions/cache/restore@v6
         with:
           path: ${{ env.HF_HOME }}
@@ -81,8 +90,6 @@ jobs:
           restore-keys: hf-models
 
       - name: Set up uv
-        # astral-sh publishes immutable releases and no longer moves major
-        # tags, so this must be an exact version — `@v10` does not exist.
         uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: "3.12"
@@ -96,8 +103,6 @@ jobs:
       - name: Show transformers version
         run: uv run --no-sync python -c "import transformers; print(f'transformers=={transformers.__version__}')"
 
-      # Scheduled and backend=github always test everything. PR selection
-      # lives on the HF Jobs job.
       - name: Run model tests
         run: |
           uv run --no-sync pytest tests/ \
@@ -122,12 +127,17 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: models
 
-  # Hugging Face Jobs: pull requests and workflow_dispatch backend=hf-jobs.
-  test-models-hf:
-    name: Test models (HF Jobs)
-    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.backend == 'hf-jobs')
+  decide:
+    name: Decide HF Jobs mode
+    if: github.event_name == 'schedule' || github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.backend == 'hf-jobs')
     runs-on: ubuntu-latest
-    timeout-minutes: 100
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      sha: ${{ steps.plan.outputs.sha }}
+      base_sha: ${{ steps.plan.outputs.base_sha }}
+      pytest_args: ${{ steps.plan.outputs.pytest_args }}
+      splits: ${{ steps.plan.outputs.splits }}
+      shards: ${{ steps.plan.outputs.shards }}
     steps:
       - name: Check User Permission
         id: checkAccess
@@ -146,8 +156,71 @@ jobs:
 
       - uses: actions/checkout@v7
         with:
-          # Needed so a PR can `git diff base...HEAD` to pick the Job flavor.
           fetch-depth: 0
+
+      - name: Plan shards or a single Job
+        id: plan
+        run: |
+          set -euo pipefail
+          SHA="${{ github.sha }}"
+          BASE_SHA=""
+          PYTEST_ARGS=""
+          MODE=selective
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            MODE=sharded
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            SHA="${{ github.event.pull_request.head.sha }}"
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            PYTEST_ARGS="--changed-since ${BASE_SHA}"
+            CHANGED="$(git diff --name-only "${BASE_SHA}...HEAD")"
+            FAILSAFE_FILES="$(printf '%s\n' "${CHANGED}" | grep -E "${FAILSAFE_DIFF}" || true)"
+            FAILSAFE_FILES="$(printf '%s\n' "${FAILSAFE_FILES}" | grep -v '^tests/test_ci_model_shards.py$' || true)"
+            FAILSAFE_FILES="$(printf '%s\n' "${FAILSAFE_FILES}" | sed '/^$/d')"
+            if [ -n "${FAILSAFE_FILES}" ]; then
+              MODE=sharded
+            fi
+          else
+            SHA="${{ github.event.inputs.sha }}"
+            if [ -z "${SHA}" ]; then
+              SHA="${{ github.sha }}"
+            fi
+            if [ "${{ github.event.inputs.full }}" = "true" ]; then
+              MODE=sharded
+            else
+              MODELS="${{ github.event.inputs.models }}"
+              if [ -z "${MODELS}" ]; then
+                MODE=sharded
+              else
+                PYTEST_ARGS="--models ${MODELS}"
+              fi
+            fi
+          fi
+          PLAN="$(python3 scripts/ci_model_shards.py)"
+          SPLITS="$(python3 -c "import json,sys; print(json.load(sys.stdin)['splits'])" <<< "${PLAN}")"
+          SHARDS='[]'
+          if [ "${MODE}" = "sharded" ]; then
+            SHARDS="$(python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['shards'], separators=(',', ':')))" <<< "${PLAN}")"
+          fi
+          echo "HF Jobs mode=${MODE} sha=${SHA} splits=${SPLITS}"
+          {
+            echo "mode=${MODE}"
+            echo "sha=${SHA}"
+            echo "base_sha=${BASE_SHA}"
+            echo "pytest_args=${PYTEST_ARGS}"
+            echo "splits=${SPLITS}"
+            echo "shards<<SHARD_EOF"
+            echo "${SHARDS}"
+            echo "SHARD_EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+  test-models-hf:
+    name: Test models (HF Jobs)
+    needs: decide
+    if: needs.decide.outputs.mode == 'selective'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v10.0.1
@@ -163,40 +236,143 @@ jobs:
             echo "HF_TOKEN secret is empty; cannot start a Job." >&2
             exit 1
           fi
-          SHA="${{ github.sha }}"
-          PYTEST_ARGS=""
-          BASE_SHA=""
-          FLAVOR=cpu-upgrade
-          JOB_TIMEOUT=30m
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            SHA="${{ github.event.pull_request.head.sha }}"
-            BASE_SHA="${{ github.event.pull_request.base.sha }}"
-            PYTEST_ARGS="--changed-since ${BASE_SHA}"
-            # tests/, packaging, or core modules select the whole registry
-            # (#19 fail-safe). That does not fit in cpu-upgrade's 32 GB.
-            if git diff --name-only "${BASE_SHA}...HEAD" | grep -E -q \
-              '^(tests/|pyproject.toml|uv.lock|src/lazyslide_models/(base|_model_registry|_repr|_utils|_version|__init__)\.py)'; then
-              FLAVOR=cpu-xl
-              JOB_TIMEOUT=90m
-            fi
-          else
-            SHA="${{ github.event.inputs.sha }}"
-            if [ -z "${SHA}" ]; then
-              SHA="${{ github.sha }}"
-            fi
-            MODELS="${{ github.event.inputs.models }}"
-            if [ -n "${MODELS}" ]; then
-              PYTEST_ARGS="--models ${MODELS}"
-            fi
-          fi
-          echo "HF Jobs flavor=${FLAVOR} timeout=${JOB_TIMEOUT} sha=${SHA}"
+          echo "HF Jobs flavor=cpu-upgrade timeout=30m sha=${{ needs.decide.outputs.sha }}"
           uvx --from huggingface_hub hf jobs run \
             --namespace RendeiroLab \
-            --flavor "${FLAVOR}" \
-            --timeout "${JOB_TIMEOUT}" \
+            --flavor cpu-upgrade \
+            --timeout 30m \
+            --secrets HF_TOKEN \
+            --env "CI_SHA=${{ needs.decide.outputs.sha }}" \
+            --env "CI_BASE_SHA=${{ needs.decide.outputs.base_sha }}" \
+            --env "CI_PYTEST_ARGS=${{ needs.decide.outputs.pytest_args }}" \
+            ghcr.io/astral-sh/uv:python3.12-bookworm \
+            bash -c "$(cat scripts/ci_hf_job.sh)"
+
+  test-models-hf-sharded:
+    name: Test models (HF Jobs ${{ matrix.shard.id }})
+    needs: decide
+    if: needs.decide.outputs.mode == 'sharded'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.decide.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          python-version: "3.12"
+
+      - name: Run shard on Hugging Face Jobs
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN}" ]; then
+            echo "HF_TOKEN secret is empty; cannot start a Job." >&2
+            exit 1
+          fi
+          echo "HF Jobs flavor=cpu-upgrade pytest-split group=${{ matrix.shard.group }}/${{ needs.decide.outputs.splits }}"
+          HF_JOB=(
+            uvx --from huggingface_hub hf jobs run
+            --namespace RendeiroLab
+            --flavor cpu-upgrade
+            --timeout 30m
+            --secrets HF_TOKEN
+            --env "CI_SHA=${{ needs.decide.outputs.sha }}"
+            --env "CI_XDIST_WORKERS=1"
+            --env "CI_PYTEST_ARGS=--splits ${{ needs.decide.outputs.splits }} --group ${{ matrix.shard.group }}"
+          )
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            HF_JOB+=(
+              --env "CI_CODECOV=1"
+              --env "CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }}"
+            )
+          fi
+          "${HF_JOB[@]}" \
+            ghcr.io/astral-sh/uv:python3.12-bookworm \
+            bash -c "$(cat scripts/ci_hf_job.sh)"
+
+  test-models-hf-gpu-slide:
+    name: Test models (HF Jobs GPU slide)
+    needs: decide
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.gpu == 'true' && github.event.inputs.backend == 'hf-jobs')
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          python-version: "3.12"
+
+      - name: Run CUDA slide-encoder tests on l4x1
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN}" ]; then
+            echo "HF_TOKEN secret is empty; cannot start a Job." >&2
+            exit 1
+          fi
+          SHA="${{ needs.decide.outputs.sha }}"
+          if [ -z "${SHA}" ]; then
+            SHA="${{ github.sha }}"
+          fi
+          echo "HF Jobs flavor=l4x1 models=${GPU_SLIDE_MODELS} sha=${SHA}"
+          uvx --from huggingface_hub hf jobs run \
+            --namespace RendeiroLab \
+            --flavor l4x1 \
+            --timeout 60m \
             --secrets HF_TOKEN \
             --env "CI_SHA=${SHA}" \
-            --env "CI_BASE_SHA=${BASE_SHA}" \
-            --env "CI_PYTEST_ARGS=${PYTEST_ARGS}" \
-            ghcr.io/astral-sh/uv:python3.12-bookworm \
+            --env "CI_DEVICE=cuda" \
+            --env "CI_INSTALL_FLASH_ATTN=1" \
+            --env "CI_XDIST_WORKERS=1" \
+            --env "CI_PYTEST_ARGS=--models ${GPU_SLIDE_MODELS} --device cuda" \
+            nvidia/cuda:13.0.1-devel-ubuntu24.04 \
+            bash -c "$(cat scripts/ci_hf_job.sh)"
+
+  test-models-hf-gpu-seg:
+    name: Test models (HF Jobs GPU cellpose)
+    needs: decide
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.gpu == 'true' && github.event.inputs.backend == 'hf-jobs')
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          python-version: "3.12"
+
+      - name: Run CUDA cellpose and cytosyn tests on t4-small
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN}" ]; then
+            echo "HF_TOKEN secret is empty; cannot start a Job." >&2
+            exit 1
+          fi
+          SHA="${{ needs.decide.outputs.sha }}"
+          if [ -z "${SHA}" ]; then
+            SHA="${{ github.sha }}"
+          fi
+          echo "HF Jobs flavor=t4-small models=${GPU_SEG_GEN_MODELS} sha=${SHA}"
+          uvx --from huggingface_hub hf jobs run \
+            --namespace RendeiroLab \
+            --flavor t4-small \
+            --timeout 40m \
+            --secrets HF_TOKEN \
+            --env "CI_SHA=${SHA}" \
+            --env "CI_DEVICE=cuda" \
+            --env "CI_XDIST_WORKERS=1" \
+            --env "CI_PYTEST_ARGS=--models ${GPU_SEG_GEN_MODELS} --device cuda" \
+            pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel \
             bash -c "$(cat scripts/ci_hf_job.sh)"

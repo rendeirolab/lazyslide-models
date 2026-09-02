@@ -51,6 +51,9 @@ def _is_irrelevant(path: Path) -> bool:
     - ``scripts/`` — one-off weight-export scripts, never imported by the suite.
     - ``*.md`` — documentation.
     - ``.github/`` — workflow YAML cannot change weight-loading tests.
+    - ``tests/test_ci_model_shards.py`` — CI helper for pytest-split group ids,
+      never imported by weight tests. Other ``tests/`` paths still select
+      everything.
 
     Everything else outside the package (``tests/``, ``pyproject.toml``,
     ``uv.lock``) still selects everything.
@@ -63,6 +66,8 @@ def _is_irrelevant(path: Path) -> bool:
         # accidentally swallow a model file.
         or "scripts" in parts
         or parts[0] == ".github"
+        or path.as_posix() == "tests/test_ci_model_shards.py"
+        or path.name == "test_ci_model_shards.py"
     )
 
 

@@ -18,7 +18,7 @@ on:
         type: boolean
         default: false
       gpu:
-        description: Also run t4-small CUDA jobs (slide encoders + flash-attn; cellpose and cytosyn smoke generate 20 steps)
+        description: Also run CUDA jobs (l4x1 slide encoders + flash-attn; t4-small cellpose and cytosyn smoke generate 20 steps)
         type: boolean
         default: false
       sha:
@@ -33,6 +33,7 @@ on:
       - 'src/lazyslide_models/**'
       - 'tests/**'
       - 'pyproject.toml'
+      - 'uv.lock'
       - 'scripts/ci_hf_job.sh'
       - 'scripts/ci_model_shards.py'
 
@@ -275,16 +276,23 @@ jobs:
             exit 1
           fi
           echo "HF Jobs flavor=cpu-upgrade pytest-split group=${{ matrix.shard.group }}/${{ needs.decide.outputs.splits }}"
-          uvx --from huggingface_hub hf jobs run \
-            --namespace RendeiroLab \
-            --flavor cpu-upgrade \
-            --timeout 30m \
-            --secrets HF_TOKEN \
-            --env "CI_SHA=${{ needs.decide.outputs.sha }}" \
-            --env "CI_XDIST_WORKERS=1" \
-            --env "CI_PYTEST_ARGS=--splits ${{ needs.decide.outputs.splits }} --group ${{ matrix.shard.group }}" \
-            --env "CI_CODECOV=${{ github.event_name == 'schedule' && '1' || '' }}" \
-            --env "CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }}" \
+          HF_JOB=(
+            uvx --from huggingface_hub hf jobs run
+            --namespace RendeiroLab
+            --flavor cpu-upgrade
+            --timeout 30m
+            --secrets HF_TOKEN
+            --env "CI_SHA=${{ needs.decide.outputs.sha }}"
+            --env "CI_XDIST_WORKERS=1"
+            --env "CI_PYTEST_ARGS=--splits ${{ needs.decide.outputs.splits }} --group ${{ matrix.shard.group }}"
+          )
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            HF_JOB+=(
+              --env "CI_CODECOV=1"
+              --env "CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }}"
+            )
+          fi
+          "${HF_JOB[@]}" \
             ghcr.io/astral-sh/uv:python3.12-bookworm \
             bash -c "$(cat scripts/ci_hf_job.sh)"
 
@@ -302,7 +310,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run CUDA slide-encoder tests on t4-small
+      - name: Run CUDA slide-encoder tests on l4x1
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -315,10 +323,10 @@ jobs:
           if [ -z "${SHA}" ]; then
             SHA="${{ github.sha }}"
           fi
-          echo "HF Jobs flavor=t4-small models=${GPU_SLIDE_MODELS} sha=${SHA}"
+          echo "HF Jobs flavor=l4x1 models=${GPU_SLIDE_MODELS} sha=${SHA}"
           uvx --from huggingface_hub hf jobs run \
             --namespace RendeiroLab \
-            --flavor t4-small \
+            --flavor l4x1 \
             --timeout 60m \
             --secrets HF_TOKEN \
             --env "CI_SHA=${SHA}" \
@@ -326,7 +334,7 @@ jobs:
             --env "CI_INSTALL_FLASH_ATTN=1" \
             --env "CI_XDIST_WORKERS=1" \
             --env "CI_PYTEST_ARGS=--models ${GPU_SLIDE_MODELS} --device cuda" \
-            pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel \
+            nvidia/cuda:13.0.1-devel-ubuntu24.04 \
             bash -c "$(cat scripts/ci_hf_job.sh)"
 
   test-models-hf-gpu-seg:

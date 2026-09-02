@@ -25,7 +25,7 @@ if ! command -v git >/dev/null 2>&1; then
   apt-get update -qq
   apt-get install -y -qq git
 fi
-# The uv image already has uv. The CUDA pytorch image has neither uv nor curl.
+# The uv image already has uv. CUDA devel / pytorch images have neither uv nor curl.
 if ! command -v uv >/dev/null 2>&1; then
   if ! command -v curl >/dev/null 2>&1; then
     apt-get update -qq
@@ -46,10 +46,8 @@ if [ -n "${CI_BASE_SHA:-}" ]; then
   git fetch --filter=blob:none origin "${CI_BASE_SHA}"
 fi
 
-if [ "${CI_DEVICE:-cpu}" = "cuda" ]; then
-  export UV_TORCH_BACKEND="${UV_TORCH_BACKEND:-cu124}"
-fi
-
+# uv sync installs the locked torch (Linux: cu13). UV_TORCH_BACKEND is
+# uv-pip-only and must not be set here — it would not change the lock.
 uv sync --dev --group model
 
 if [ "${CI_DEVICE:-cpu}" = "cuda" ]; then

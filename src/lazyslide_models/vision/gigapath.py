@@ -163,10 +163,17 @@ class _GigaPathSlideEncoder(SlideEncoderModel):
             )
 
     def encode_slide(self, embeddings, coords=None, **kwargs) -> SlideEncodeOutput:
+        # Upstream DilatedAttention always calls flash_attn, which only
+        # accepts fp16/bf16. Tests and callers pass fp32 tile embeddings.
+        # Same pattern as Prism2: autocast on CUDA, no-op elsewhere.
+        if torch.is_tensor(embeddings) and embeddings.is_cuda:
+            with torch.autocast("cuda", torch.bfloat16):
+                outcomes = self.model(embeddings, coords)
+        else:
+            outcomes = self.model(embeddings, coords)
         # `LongNetViT.forward` returns a *list* of per-layer outcomes; with
         # `all_layer_embed=False` (the default) it holds a single [B, D]
         # tensor.
-        outcomes = self.model(embeddings, coords)
         return {"embeddings": outcomes[0].squeeze()}
 
 

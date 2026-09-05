@@ -18,7 +18,7 @@ on:
         type: boolean
         default: false
       gpu:
-        description: Also run CUDA jobs (l4x1 slide encoders + flash-attn; t4-small cellpose and cytosyn smoke generate 20 steps)
+        description: Also run CUDA jobs (l4x1 slide encoders + Astral flash-attn wheel; t4-small cellpose and cytosyn smoke generate 20 steps)
         type: boolean
         default: false
       sha:
@@ -301,7 +301,8 @@ jobs:
     needs: decide
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.gpu == 'true' && github.event.inputs.backend == 'hf-jobs')
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    # Queue can sit for a long time; the 25m cap is on the next step, after Running.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
 
@@ -310,7 +311,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run CUDA slide-encoder tests on l4x1
+      - name: Queue until l4x1 is running
+        id: queue
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
@@ -324,18 +326,49 @@ jobs:
             SHA="${{ github.sha }}"
           fi
           echo "HF Jobs flavor=l4x1 models=${GPU_SLIDE_MODELS} sha=${SHA}"
-          uvx --from huggingface_hub hf jobs run \
+          # --detach stdout is a human banner; the Job ID is the 24-char hex.
+          JOB_OUT="$(uvx --from huggingface_hub hf jobs run \
+            --detach \
             --namespace RendeiroLab \
             --flavor l4x1 \
-            --timeout 60m \
+            --timeout 20m \
+            --name lazyslide-models-gpu-slide \
             --secrets HF_TOKEN \
             --env "CI_SHA=${SHA}" \
             --env "CI_DEVICE=cuda" \
             --env "CI_INSTALL_FLASH_ATTN=1" \
             --env "CI_XDIST_WORKERS=1" \
             --env "CI_PYTEST_ARGS=--models ${GPU_SLIDE_MODELS} --device cuda" \
-            nvidia/cuda:13.0.1-devel-ubuntu24.04 \
-            bash -c "$(cat scripts/ci_hf_job.sh)"
+            nvidia/cuda:13.0.1-runtime-ubuntu24.04 \
+            bash -c "$(cat scripts/ci_hf_job.sh)")"
+          JOB_ID="$(printf '%s\n' "${JOB_OUT}" | grep -Eo '[a-fA-F0-9]{24}' | head -1)"
+          if ! printf '%s' "${JOB_ID}" | grep -Eq '^[a-fA-F0-9]{24}$'; then
+            echo "hf jobs run --detach did not print a Job ID (got: ${JOB_OUT})" >&2
+            exit 1
+          fi
+          echo "job_id=${JOB_ID}" >> "${GITHUB_OUTPUT}"
+          echo "https://huggingface.co/jobs/RendeiroLab/${JOB_ID}"
+          # JobStage is only SCHEDULING/RUNNING plus terminals (COMPLETED, CANCELED, ERROR, DELETED).
+          while true; do
+            STAGE="$(uvx --from huggingface_hub python -c "from huggingface_hub import inspect_job; print(inspect_job(job_id='${JOB_ID}', namespace='RendeiroLab').status.stage)")"
+            echo "stage=${STAGE}"
+            case "${STAGE}" in
+              RUNNING|COMPLETED) break ;;
+              CANCELED|ERROR|DELETED) exit 1 ;;
+            esac
+            sleep 15
+          done
+
+      - name: Run CUDA slide-encoder tests on l4x1
+        timeout-minutes: 25
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          JOB_ID: ${{ steps.queue.outputs.job_id }}
+        run: |
+          set -euo pipefail
+          JOB_REF="RendeiroLab/${JOB_ID}"
+          uvx --from huggingface_hub hf jobs logs -f "${JOB_REF}"
+          uvx --from huggingface_hub hf jobs wait --timeout 20m "${JOB_REF}"
 
   test-models-hf-gpu-seg:
     name: Test models (HF Jobs GPU cellpose)

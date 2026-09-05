@@ -20,6 +20,8 @@ from lazyslide_models.base import ModelTask, TilePredictionModel
     flops="1.53M",
 )
 class FocusLiteNN(TilePredictionModel):
+    columns = ("focus",)
+
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
 

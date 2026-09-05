@@ -5,6 +5,16 @@ import torch
 from lazyslide_models._model_registry import register
 from lazyslide_models.base import ModelTask, TilePredictionModel
 
+#: The six QC scores, in the order the model emits them.
+PATHPROFILER_QC_SCORES = (
+    "diagnostic_quality",
+    "visual_cleanliness",
+    "focus_issue",
+    "staining_issue",
+    "tissue_folding_present",
+    "misc_artifacts_present",
+)
+
 
 @register(
     key="pathprofilerqc",
@@ -39,6 +49,8 @@ class PathProfilerQC(TilePredictionModel):
     +------------------------+---------------------------------------------------------------+
 
     """
+
+    columns = PATHPROFILER_QC_SCORES
 
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
@@ -87,15 +99,6 @@ class PathProfilerQC(TilePredictionModel):
         The model expects a tensor of shape [B, C, H, W].
 
         """
-        names = [
-            "diagnostic_quality",
-            "visual_cleanliness",
-            "focus_issue",
-            "staining_issue",
-            "tissue_folding_present",
-            "misc_artifacts_present",
-        ]
-
         outputs = self.model(image)
         outputs = outputs.T.detach().cpu().numpy()
-        return dict(zip(names, outputs))
+        return dict(zip(PATHPROFILER_QC_SCORES, outputs, strict=True))

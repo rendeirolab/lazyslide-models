@@ -36,7 +36,7 @@ from pathlib import Path
 import pytest
 import torch
 from conftest import all_models, models_with_method, models_with_method_x_size
-from contracts import VALIDATOR
+from contracts import VALIDATOR, check_prediction
 from inputs import INPUT_FACTORY
 
 from lazyslide_models import MODEL_REGISTRY
@@ -315,16 +315,20 @@ def test_encode_slide(model_name: str, load_model, device: str) -> None:
 
 
 def _predict_models() -> list[pytest.param]:
-    """Models with predict() but WITHOUT get_channel_names() (style transfer)."""
-    all_predict = {p.values[0] for p in models_with_method("predict")}
-    style = {p.values[0] for p in models_with_method("predict", "get_channel_names")}
-    names = sorted(all_predict - style)
+    """Every model with ``predict()``.
+
+    ``style_transfer`` and ``tile_prediction`` used to be split here by whether
+    the class defined ``get_channel_names``. The model's class now carries its
+    output contract, so there is nothing left to split on — one test covers
+    them all and the validator dispatches on the class.
+    """
     params = []
-    for name in names:
+    for p in models_with_method("predict"):
+        name = p.values[0]
         cls = MODEL_REGISTRY[name]
         marks = [pytest.mark.gated] if getattr(cls, "is_gated", False) else []
         params.append(pytest.param(name, marks=marks, id=name))
-    return params
+    return sorted(params, key=lambda p: p.values[0])
 
 
 def _predict_models_x_size() -> list[pytest.param]:
@@ -356,9 +360,18 @@ def _prepare_predict_input(model, value, device: str = "cpu"):
     return value
 
 
+def _validate_predict(model, task, out) -> None:
+    """Feature-prediction models keep the task-based validator; the rest are
+    dispatched on their model class."""
+    if task is ModelTask.feature_prediction:
+        VALIDATOR[task](out)
+    else:
+        check_prediction(model, out)
+
+
 @pytest.mark.parametrize("model_name", _predict_models())
 def test_predict(model_name: str, load_model, device: str) -> None:
-    """predict() must return a dict of numpy arrays."""
+    """predict() must return whatever ``output_spec`` says it returns."""
     model = load_model(model_name)
     # Resolve task for input lookup
     raw_task = MODEL_REGISTRY[model_name].task
@@ -366,57 +379,25 @@ def test_predict(model_name: str, load_model, device: str) -> None:
     inp = INPUT_FACTORY[task](model)
     value = _prepare_predict_input(model, inp[0], device)
     coords = getattr(inp, "coords", None)
-    out = model.predict(value) if coords is None else model.predict(value, coords)
-    VALIDATOR[task](out)
+    with torch.inference_mode():
+        out = model.predict(value) if coords is None else model.predict(value, coords)
+    _validate_predict(model, task, out)
 
 
 @pytest.mark.parametrize("model_name, image_size", _predict_models_x_size())
 def test_predict_sizes(
     model_name: str, image_size: int, load_model, device: str
 ) -> None:
-    """predict() must return a dict of numpy arrays for various input sizes."""
+    """predict() must hold its output contract across input sizes."""
     model = load_model(model_name)
     raw_task = MODEL_REGISTRY[model_name].task
     task = raw_task[0] if isinstance(raw_task, list) else raw_task
     inp = INPUT_FACTORY[task](model, size=image_size)
     value = _prepare_predict_input(model, inp[0], device)
     coords = getattr(inp, "coords", None)
-    out = model.predict(value) if coords is None else model.predict(value, coords)
-    VALIDATOR[task](out)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# style transfer — predict + get_channel_names
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.parametrize(
-    "model_name", models_with_method("predict", "get_channel_names")
-)
-def test_style_transfer(model_name: str, load_model, device: str) -> None:
-    """predict() must return a float Tensor, 3-D or 4-D."""
-    model = load_model(model_name)
-    inp = INPUT_FACTORY[ModelTask.style_transfer](model)
-    img = _prepare_image(model, inp.image, device)
     with torch.inference_mode():
-        out = model.predict(img)
-    VALIDATOR[ModelTask.style_transfer](out)
-
-
-@pytest.mark.parametrize(
-    "model_name, image_size",
-    models_with_method_x_size("predict", "get_channel_names"),
-)
-def test_style_transfer_sizes(
-    model_name: str, image_size: int, load_model, device: str
-) -> None:
-    """predict() for style transfer must return float Tensor for various input sizes."""
-    model = load_model(model_name)
-    inp = INPUT_FACTORY[ModelTask.style_transfer](model, size=image_size)
-    img = _prepare_image(model, inp.image, device)
-    with torch.inference_mode():
-        out = model.predict(img)
-    VALIDATOR[ModelTask.style_transfer](out)
+        out = model.predict(value) if coords is None else model.predict(value, coords)
+    _validate_predict(model, task, out)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

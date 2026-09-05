@@ -215,7 +215,34 @@ class SegmentationModelProtocol(ModelBaseProtocol, Protocol):
 
 @runtime_checkable
 class TilePredictionModelProtocol(ModelBaseProtocol, Protocol):
+    """Named scalars per tile."""
+
+    columns: tuple[str, ...] | None
+
     def predict(self, image, *args, **kwargs) -> dict[str, Any]: ...
+
+
+@runtime_checkable
+class DensePredictionModelProtocol(ModelBaseProtocol, Protocol):
+    """One value per pixel; ``predict`` returns ``[B, C, H, W]``."""
+
+    output_mpp: float | None
+
+    def predict(self, image, *args, **kwargs): ...
+
+
+@runtime_checkable
+class MarkerMapModelProtocol(DensePredictionModelProtocol, Protocol):
+    """A dense map of named markers."""
+
+    channel_names: tuple[str, ...]
+
+
+@runtime_checkable
+class VirtualStainModelProtocol(DensePredictionModelProtocol, Protocol):
+    """A dense map of one or more RGB stains."""
+
+    stains: tuple[str, ...]
 
 
 @runtime_checkable
@@ -228,13 +255,6 @@ class FeaturePredictionModelProtocol(ModelBaseProtocol, Protocol):
     """
 
     def predict(self, features, coords=None, *args, **kwargs) -> dict[str, Any]: ...
-
-
-@runtime_checkable
-class StyleTransferModelProtocol(ModelBaseProtocol, Protocol):
-    def predict(self, image, *args, **kwargs): ...
-
-    def get_channel_names(self) -> tuple[str, ...]: ...
 
 
 @runtime_checkable
@@ -454,12 +474,88 @@ class SegmentationModel(ModelBase):
 
 
 class TilePredictionModel(ModelBase):
+    """Base class for models returning named scalars per tile.
+
+    Attributes
+    ----------
+    columns : tuple of str, optional
+        Output column names, in the order ``predict`` returns them. ``None``
+        when the columns are only known after loading weights — for example
+        :class:`DeepSpotM <lazyslide_models.tile_prediction.DeepSpotM>`, whose
+        gene panel depends on its constructor arguments.
+    """
+
+    columns: tuple[str, ...] | None = None
+
     @abstractmethod
     def predict(self, image) -> dict[str, Any]:
-        """The output should always be a dict of numpy arrays
-        to allow multiple outputs.
+        """Predict from a ``[B, C, H, W]`` tile batch.
+
+        Returns a dict of NumPy arrays, one length-``B`` column per entry, so a
+        model can return several named outputs at once.
         """
         raise NotImplementedError
+
+
+class DensePredictionModel(ModelBase):
+    """Base class for models returning one value per pixel.
+
+    Not registrable on its own: it exists so a runner can ask "is this dense?"
+    with one ``isinstance`` check and share a single stitching path between
+    :class:`MarkerMapModel` and :class:`VirtualStainModel`.
+
+    Attributes
+    ----------
+    output_mpp : float, optional
+        Resolution of the output. ``None`` means the output lands on the input
+        tile's own grid, which is the common case; set it when the model
+        predicts onto a coarser or finer grid than it was given.
+    """
+
+    output_mpp: float | None = None
+
+    @abstractmethod
+    def predict(self, image):
+        """Predict from a ``[B, C, H, W]`` tile batch.
+
+        Returns a float tensor of shape ``[B, C, H, W]``.
+        """
+        raise NotImplementedError
+
+
+class MarkerMapModel(DensePredictionModel):
+    """A dense map of named markers, one channel each.
+
+    ``predict`` returns ``[B, C, H, W]`` with ``C == len(channel_names)``.
+
+    Attributes
+    ----------
+    channel_names : tuple of str
+        Marker names, in channel order.
+    """
+
+    channel_names: tuple[str, ...]
+
+
+class VirtualStainModel(DensePredictionModel):
+    """A dense map of one or more synthesised RGB stains.
+
+    ``predict`` returns ``[B, C, H, W]`` with ``C == 3 * len(stains)``, ordered
+    RGB-major — channels ``3i`` to ``3i + 2`` are the RGB planes of
+    ``stains[i]``. Staying 4-D rather than ``[B, N, 3, H, W]`` keeps one tensor
+    contract across both dense classes, so a runner needs only one stitching
+    implementation and splits the result afterwards.
+
+    Attributes
+    ----------
+    stains : tuple of str
+        The stains synthesised, e.g. ``("PAS",)`` or ``("HER2 IHC",)``. There is
+        no default: a virtual stain that does not say which stain it produces
+        carries no usable metadata, since its channels are only ``R``, ``G``,
+        ``B``.
+    """
+
+    stains: tuple[str, ...]
 
 
 class FeaturePredictionModel(ModelBase):
@@ -489,16 +585,6 @@ class FeaturePredictionModel(ModelBase):
 
     @abstractmethod
     def predict(self, features, coords=None) -> dict[str, Any]:
-        raise NotImplementedError
-
-
-class StyleTransferModel(ModelBase):
-    @abstractmethod
-    def predict(self, image):
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_channel_names(self) -> tuple[str, ...]:
         raise NotImplementedError
 
 

@@ -16,6 +16,10 @@ SPIDER_VARIANTS = Literal[
 
 
 class Spider(TilePredictionModel):
+    # `class` is the argmax label, `prob` its softmax probability. The set of
+    # possible labels is variant-specific and only known after loading weights.
+    columns = ("class", "prob")
+
     def __init__(self, variants: SPIDER_VARIANTS, model_path=None, token=None):
         from transformers import AutoModel, AutoProcessor
 

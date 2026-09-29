@@ -481,7 +481,7 @@ class TilePredictionModel(ModelBase):
     ----------
     columns : tuple of str, optional
         Output column names, in the order ``predict`` returns them. ``None``
-        when the columns are only known after loading weights — for example
+        when the columns are only known after loading weights, for example
         :class:`DeepSpotM <lazyslide_models.tile_prediction.DeepSpotM>`, whose
         gene panel depends on its constructor arguments.
     """
@@ -564,7 +564,7 @@ class VirtualStainModel(DensePredictionModel):
     """A dense map of one or more synthesised RGB stains.
 
     ``predict`` returns ``[B, C, H, W]`` with ``C == 3 * len(stains)``, ordered
-    RGB-major — channels ``3i`` to ``3i + 2`` are the RGB planes of
+    RGB-major: channels ``3i`` to ``3i + 2`` are the RGB planes of
     ``stains[i]``. Staying 4-D rather than ``[B, N, 3, H, W]`` keeps one tensor
     contract across both dense classes, so a runner needs only one stitching
     implementation and splits the result afterwards.

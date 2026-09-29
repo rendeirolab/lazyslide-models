@@ -77,8 +77,8 @@ ROSIE_MARKERS = (
     flops="17.37G",
 )
 class ROSIE(TilePredictionModel):
-    # One value per marker per tile, not a dense map — so this is a tile
-    # prediction, despite being registered under the `style_transfer` task.
+    # One value per marker per tile, not a dense map, so this is a tile
+    # prediction even though it is registered under the `style_transfer` task.
     columns = ROSIE_MARKERS
 
     def __init__(self, model_path: str | None = None, token: str | None = None):

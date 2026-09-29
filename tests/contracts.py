@@ -157,8 +157,8 @@ def check_prediction(model, output) -> None:
     """``predict(image)`` must return the type its model class promises.
 
     Dispatches on the model class, which is the discriminator in this design.
-    Deliberately does not check the channel count against the declared names —
-    see the plan's "Explicitly not doing".
+    It does not check the channel count against the declared names. That is
+    deliberate: this change adds no output shape check anywhere.
     """
     if isinstance(model, DensePredictionModel):
         t = _tensor(output, "predict()")

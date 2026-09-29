@@ -1,12 +1,13 @@
 """Tests for the three prediction model classes.
 
-None of these load weights — they read class attributes only, so the whole file
+None of these load weights. They read class attributes only, so the whole file
 runs for every model on a selective CI run. The nine ``cv_feature`` models are
 pure OpenCV/NumPy, so their declared ``columns`` are checked against a real
 ``predict`` call rather than trusted.
 
-Note there is deliberately no check that a model's tensor actually has as many
-channels as it declares; see the plan's "Explicitly not doing".
+There is deliberately no check that a model's tensor actually has as many
+channels as it declares. That was a design decision: output shapes are not
+validated anywhere, at runtime or in tests.
 """
 
 from __future__ import annotations
@@ -192,6 +193,6 @@ def test_virtual_stain_supports_several_stains() -> None:
         def predict(self, image):
             raise NotImplementedError
 
-    # C would be 3 * 2 = 6, RGB-major. Not asserted against a tensor here by
-    # design — see the module docstring.
+    # C would be 3 * 2 = 6, RGB-major. Not asserted against a tensor here, by
+    # design. See the module docstring.
     assert _names(MultiStain) == ("PAS", "Masson trichrome")

@@ -319,7 +319,7 @@ def _predict_models() -> list[pytest.param]:
 
     ``style_transfer`` and ``tile_prediction`` used to be split here by whether
     the class defined ``get_channel_names``. The model's class now carries its
-    output contract, so there is nothing left to split on — one test covers
+    output contract, so there is nothing left to split on. One test covers
     them all and the validator dispatches on the class.
     """
     params = []

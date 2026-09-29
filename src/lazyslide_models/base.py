@@ -503,22 +503,9 @@ class TilePredictionModel(ModelBase):
 class DensePredictionModel(ModelBase):
     """Base class for models returning one value per pixel.
 
-    Not registrable on its own: it exists so a runner can ask "is this dense?"
-    with one ``isinstance`` check and share a single stitching path between
-    :class:`MarkerMapModel` and :class:`VirtualStainModel`.
-
-    ``predict`` returns the model's **final, post-activation** output. Whatever
+    ``predict`` should return the model's **final, post-activation** output. Whatever
     activation the model was trained with is applied inside ``predict``, so a
-    caller never applies one. Without that rule the convention varies per
-    model, a runner has to guess, and a runner that guesses wrong silently
-    produces plausible but incorrect values rather than raising.
-
-    The values stay in the model's own units. They are not forced onto a common
-    scale, because these models are not all classifiers: GigaTIME is trained
-    with a binary cross-entropy objective and lands in ``[0, 1]``, while
-    MIPHEI-ViT regresses normalised marker intensity into ``[-0.9, 0.9]``.
-    Squashing the second through a sigmoid to match the first would destroy the
-    intensity scale. Declare the range with ``output_range`` instead.
+    caller never applies one.
 
     Attributes
     ----------
@@ -546,7 +533,7 @@ class DensePredictionModel(ModelBase):
         raise NotImplementedError
 
 
-class MarkerMapModel(DensePredictionModel):
+class MarkerMapModel(DensePredictionModel, ABC):
     """A dense map of named markers, one channel each.
 
     ``predict`` returns ``[B, C, H, W]`` with ``C == len(channel_names)``.
@@ -560,7 +547,7 @@ class MarkerMapModel(DensePredictionModel):
     channel_names: tuple[str, ...]
 
 
-class VirtualStainModel(DensePredictionModel):
+class VirtualStainModel(DensePredictionModel, ABC):
     """A dense map of one or more synthesised RGB stains.
 
     ``predict`` returns ``[B, C, H, W]`` with ``C == 3 * len(stains)``, ordered

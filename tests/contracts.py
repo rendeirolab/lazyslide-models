@@ -158,7 +158,11 @@ def check_prediction(model, output) -> None:
 
     Dispatches on the model class, which is the discriminator in this design.
     It does not check the channel count against the declared names. That is
-    deliberate: this change adds no output shape check anywhere.
+    deliberate: output shapes are not validated anywhere.
+
+    It does check values against ``output_range`` when a model declares one.
+    That is what catches a model returning raw logits while claiming a bounded
+    range, which is the mistake the post-activation rule exists to prevent.
     """
     if isinstance(model, DensePredictionModel):
         t = _tensor(output, "predict()")
@@ -167,6 +171,14 @@ def check_prediction(model, output) -> None:
             f"predict(): a dense model must return 4-D [B, C, H, W], "
             f"got shape {tuple(t.shape)}"
         )
+        if model.output_range is not None:
+            low, high = model.output_range
+            got_low, got_high = t.min().item(), t.max().item()
+            assert low <= got_low and got_high <= high, (
+                f"predict() returned values in [{got_low:.3f}, {got_high:.3f}], "
+                f"outside the declared output_range {model.output_range}. "
+                f"predict must return final, post-activation output."
+            )
         return
 
     check_tile_prediction(output)

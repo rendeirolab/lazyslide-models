@@ -52,11 +52,7 @@ GIGATIME_CHANNELS = (
 )
 class GigaTIME(MarkerMapModel):
     channel_names = GIGATIME_CHANNELS
-    # Unbounded, because `predict` currently returns raw logits: LazySlide
-    # still applies the sigmoid itself. That breaks the post-activation rule
-    # this class documents, and both halves have to move together, so the fix
-    # lands with the runner change. GigaTIMEFlash below already does it right.
-    output_range = None
+    output_range = (0.0, 1.0)
 
     def __init__(self, model_path: str | None = None, token: str | None = None):
         from huggingface_hub import hf_hub_download
@@ -73,7 +69,9 @@ class GigaTIME(MarkerMapModel):
 
     @torch.inference_mode()
     def predict(self, image):
-        return self.model(image)
+        # The network ends in a plain conv and was trained with a sigmoid
+        # objective, so activate here: `predict` returns final values.
+        return torch.sigmoid(self.model(image))
 
     def get_transform(self):
         import torch
@@ -267,8 +265,8 @@ class GigaTIMEFlash(MarkerMapModel):
 
     @torch.inference_mode()
     def predict(self, image):
-        # `config.json` sets `apply_sigmoid: true`; the forward pass returns
-        # logits. (GigaTIME v1 has no such flag and returns raw logits.)
+        # `config.json` sets `apply_sigmoid: true` and the forward pass returns
+        # logits, so activate here: `predict` returns final values.
         return torch.sigmoid(self.model(image))
 
     def get_transform(self):

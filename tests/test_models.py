@@ -371,7 +371,7 @@ def _validate_predict(model, task, out) -> None:
 
 @pytest.mark.parametrize("model_name", _predict_models())
 def test_predict(model_name: str, load_model, device: str) -> None:
-    """predict() must return whatever ``output_spec`` says it returns."""
+    """predict() must return the output type its model class promises."""
     model = load_model(model_name)
     # Resolve task for input lookup
     raw_task = MODEL_REGISTRY[model_name].task

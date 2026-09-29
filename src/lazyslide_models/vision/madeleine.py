@@ -17,11 +17,17 @@ from lazyslide_models.base import ModelTask, SlideEncodeOutput, SlideEncoderMode
     github_url="https://github.com/mahmoodlab/MADELEINE",
     paper_url="http://arxiv.org/abs/2408.02859",
     bib_key="Jaume2024-tq",
-    param_size="3.2M",
-    vision_encoder="conch",
-    flops="421.63M",
+    param_size="4.7M",
+    vision_encoder="conch-madeleine",
+    flops="736.51M",
 )
 class MadeleineSlideEncoder(SlideEncoderModel):
+    """MADELEINE H&E slide encoder.
+
+    Trained on CONCH features of 256 px tiles at 10x; extract them with
+    ``conch-madeleine``, which reproduces MADELEINE's patch embedder.
+    """
+
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
 

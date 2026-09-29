@@ -79,7 +79,8 @@ class MUSK(
                 Resize(384, interpolation=InterpolationMode.BICUBIC, antialias=True),
                 CenterCrop(384),
                 ToDtype(dtype=torch.float32, scale=True),
-                Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                # README: timm IMAGENET_INCEPTION_MEAN/STD, i.e. 0.5/0.5
+                Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
             ]
         )
 

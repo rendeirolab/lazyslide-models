@@ -441,112 +441,27 @@ class BatchedABMIL(nn.Module):
 
 # %%
 class MADELEINEJITWrapper(nn.Module):
-    """
-    Export-compatible wrapper for MADELEINE model.
-    Flattened architecture for torch.export compatibility.
+    """Export-friendly MADELEINE ``encode_he``.
+
+    Reuses the upstream modules as-is (learned LayerNorms, one ABMIL per head)
+    and only writes the einops head split as a reshape.
     """
 
     def __init__(self, madeleine_model: MADELEINE):
         super().__init__()
-
-        self.input_dim = madeleine_model.wsi_embedders.pre_attention_params["input_dim"]
-        self.hidden_dim = madeleine_model.wsi_embedders.pre_attention_params[
-            "hidden_dim"
-        ]
-        self.n_heads = madeleine_model.wsi_embedders.n_heads
-
-        # Pre-attention network (simplified, weights copied below)
-        self.pre_linear1 = nn.Linear(self.input_dim, self.hidden_dim)
-        self.pre_linear2 = nn.Linear(self.hidden_dim, self.hidden_dim)
-        self.pre_linear3 = nn.Linear(self.hidden_dim, self.hidden_dim * self.n_heads)
-
-        attn_params = madeleine_model.wsi_embedders.attention_params["params"]
-        self.attn_input_dim = attn_params["input_dim"]
-        self.attn_hidden_dim = attn_params["hidden_dim"]
-
-        self.attention_a = nn.Linear(self.attn_input_dim, self.attn_hidden_dim)
-        self.attention_b = nn.Linear(self.attn_input_dim, self.attn_hidden_dim)
-        self.attention_c = nn.Linear(self.attn_hidden_dim, 1)
-
-        proj_input_dim = self.attn_hidden_dim * self.n_heads
-        proj_output_dim = self.attn_hidden_dim
-        self.projector = nn.Linear(proj_input_dim, proj_output_dim)
+        embedder = madeleine_model.wsi_embedders
+        self.n_heads = embedder.n_heads
+        self.pre_attn = embedder.pre_attn
+        self.attn = embedder.attn
+        self.projector = madeleine_model.projector
 
     def forward(self, feats: torch.Tensor) -> torch.Tensor:
-        """
-        Encode patch features to slide embedding.
-
-        Args:
-            feats: [B, N, S] — batch, num tiles, feature dim
-
-        Returns:
-            torch.Tensor: [B, hidden_dim] slide embeddings
-        """
-        bs, n_tokens, d_in = feats.shape
-
-        x = F.gelu(F.layer_norm(self.pre_linear1(feats), [self.hidden_dim]))
-        x = F.dropout(x, 0.1, training=self.training)
-        x = F.gelu(F.layer_norm(self.pre_linear2(x), [self.hidden_dim]))
-        x = F.dropout(x, 0.1, training=self.training)
-        embeddings = F.gelu(
-            F.layer_norm(self.pre_linear3(x), [self.hidden_dim * self.n_heads])
-        )
-        embeddings = F.dropout(embeddings, 0.1, training=self.training)
-
-        # Use first head's worth of features for attention
-        if self.n_heads > 1:
-            embeddings = embeddings[:, :, : self.attn_input_dim]
-
-        a = torch.tanh(self.attention_a(embeddings))
-        b = torch.sigmoid(self.attention_b(embeddings))
-        A = a * b
-        A = self.attention_c(A)
-        attention_weights = F.softmax(A, dim=1)
-
-        slide_embedding = embeddings * attention_weights
-        slide_embedding = torch.sum(slide_embedding, dim=1)
-
-        # Pad to projector input dim if needed
-        if self.n_heads > 1:
-            expected_dim = self.attn_hidden_dim * self.n_heads
-            current_dim = slide_embedding.shape[-1]
-            if current_dim < expected_dim:
-                padding = torch.zeros(
-                    bs,
-                    expected_dim - current_dim,
-                    dtype=slide_embedding.dtype,
-                    device=slide_embedding.device,
-                )
-                slide_embedding = torch.cat([slide_embedding, padding], dim=-1)
-
-        slide_embedding = self.projector(slide_embedding)
-
-        return slide_embedding
-
-
-def copy_weights_to_jit_model(
-    original_model: MADELEINE, jit_model: MADELEINEJITWrapper
-):
-    """Copy weights from original MADELEINE to the export wrapper."""
-    original_pre_attn = original_model.wsi_embedders.pre_attn
-    with torch.no_grad():
-        jit_model.pre_linear1.weight.copy_(original_pre_attn[0].weight)
-        jit_model.pre_linear1.bias.copy_(original_pre_attn[0].bias)
-        jit_model.pre_linear2.weight.copy_(original_pre_attn[4].weight)
-        jit_model.pre_linear2.bias.copy_(original_pre_attn[4].bias)
-        jit_model.pre_linear3.weight.copy_(original_pre_attn[8].weight)
-        jit_model.pre_linear3.bias.copy_(original_pre_attn[8].bias)
-
-        original_attn = original_model.wsi_embedders.attn[0]
-        jit_model.attention_a.weight.copy_(original_attn.attention_a[0].weight)
-        jit_model.attention_a.bias.copy_(original_attn.attention_a[0].bias)
-        jit_model.attention_b.weight.copy_(original_attn.attention_b[0].weight)
-        jit_model.attention_b.bias.copy_(original_attn.attention_b[0].bias)
-        jit_model.attention_c.weight.copy_(original_attn.attention_c.weight)
-        jit_model.attention_c.bias.copy_(original_attn.attention_c.bias)
-
-        jit_model.projector.weight.copy_(original_model.projector.weight)
-        jit_model.projector.bias.copy_(original_model.projector.bias)
+        """[B, N, 512] patch features -> [B, 512] slide embeddings."""
+        b, t, _ = feats.shape
+        # rearrange(x, "b t (e c) -> b t e c", c=n_heads)
+        emb = self.pre_attn(feats).reshape(b, t, -1, self.n_heads)
+        att = torch.stack([a(emb[..., i]) for i, a in enumerate(self.attn)], dim=-1)
+        return self.projector((emb * att).sum(1).reshape(b, -1))
 
 
 # %%
@@ -581,9 +496,8 @@ else:
 print("Loaded weights successfully!")
 
 # %%
+model = model.cpu().eval()
 jit_model = MADELEINEJITWrapper(model)
-copy_weights_to_jit_model(model, jit_model)
-jit_model.eval()
 
 # Dynamic batch (dim 0) + N_tokens (dim 1); feature dim is fixed at 512
 dynamic_shapes = [{0: torch.export.Dim.AUTO, 1: torch.export.Dim.AUTO}]
@@ -601,3 +515,12 @@ torch.manual_seed(42)
 fixed_input = torch.randn(4, 20, 512)
 
 verify_exported(jit_model, MADELEINE_EXPORT_PATH, fixed_input, "MADELEINE")
+
+# The export must reproduce upstream encode_he, not just the wrapper
+with torch.no_grad():
+    expected = model.encode_he(fixed_input, "cpu")
+    exported = torch.export.load(MADELEINE_EXPORT_PATH).module()(fixed_input)
+torch.testing.assert_close(exported, expected)
+print(
+    f"MADELEINE export matches encode_he ({sum(p.numel() for p in jit_model.parameters()):,} params)"
+)

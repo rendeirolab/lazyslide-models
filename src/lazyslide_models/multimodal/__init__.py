@@ -1,5 +1,5 @@
 from .biomedclip import BiomedCLIP
-from .conch import CONCH
+from .conch import CONCH, CONCHMadeleine
 from .medsiglip import MedSigLip
 from .musk import MUSK
 from .omiclip import OmiCLIP
@@ -14,6 +14,7 @@ __all__ = [
     "MUSK",
     "PLIP",
     "BiomedCLIP",
+    "CONCHMadeleine",
     "MedSigLip",
     "OmiCLIP",
     "Prism",

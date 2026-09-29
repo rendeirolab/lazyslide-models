@@ -1,8 +1,10 @@
 import numpy as np
 import torch
 from PIL import Image
+from timm.data.constants import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD
 
 from lazyslide_models._model_registry import register
+from lazyslide_models._utils import get_default_transform
 from lazyslide_models.base import DenseTokens, ImageTextModel, ModelTask
 
 _HF_HUB_ID = "microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224"
@@ -38,7 +40,8 @@ class BiomedCLIP(ImageTextModel):
         self._context_length = 256
 
     def get_transform(self):
-        return None
+        # open_clip eval preprocess: Resize(224, bicubic) -> CenterCrop, CLIP stats
+        return get_default_transform(mean=OPENAI_CLIP_MEAN, std=OPENAI_CLIP_STD)
 
     def _prepare_image(self, image):
         if not isinstance(image, torch.Tensor):

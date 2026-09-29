@@ -144,7 +144,8 @@ class Titan(
         return Compose(
             [
                 ToImage(),
-                Resize(448, interpolation=InterpolationMode.BICUBIC, antialias=True),
+                # conch_v1_5.py: T.Resize(448, interpolation=BILINEAR)
+                Resize(448, interpolation=InterpolationMode.BILINEAR, antialias=True),
                 CenterCrop(448),
                 ToDtype(dtype=torch.float32, scale=True),
                 Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),

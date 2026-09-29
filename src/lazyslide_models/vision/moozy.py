@@ -6,17 +6,27 @@ from lazyslide_models._model_registry import register
 from lazyslide_models.base import ModelTask, SlideEncodeOutput, SlideEncoderModel
 
 
-def _tile_spacing(coords) -> float:
-    """Level-0 distance between adjacent tiles, MOOZY's ``patch_size_level0``.
+def _tile_spacing(coords, invalid_mask=None) -> torch.Tensor:
+    """Per-slide level-0 distance between adjacent tiles, MOOZY's
+    ``patch_size_level0``.
 
-    The smallest step between distinct x (or y) origins; upstream snaps tiles
-    to a non-overlapping grid with this step. Falls back to 224 for a single
-    tile, where no distance enters the ALiBi bias.
+    ``coords`` is ``[B, ..., 2]``; entries flagged in ``invalid_mask`` (e.g.
+    zero-filled padding) are ignored. Each slide gets the smallest step between
+    its distinct x (or y) origins, since upstream snaps tiles to a
+    non-overlapping grid with this step. A slide with a single tile falls back
+    to 224, where no distance enters the ALiBi bias.
     """
-    c = torch.as_tensor(coords).reshape(-1, 2)
-    steps = [torch.unique(c[:, i]).diff() for i in range(2)]
-    steps = [s.min() for s in steps if s.numel()]
-    return float(min(steps)) if steps else 224.0
+    B = coords.shape[0]
+    coords = coords.reshape(B, -1, 2)
+    valid = None if invalid_mask is None else ~invalid_mask.reshape(B, -1)
+    spacing = []
+    for i, c in enumerate(coords):
+        if valid is not None:
+            c = c[valid[i]]
+        steps = [torch.unique(c[:, d]).diff() for d in range(2)]
+        steps = [s.min() for s in steps if s.numel()]
+        spacing.append(float(min(steps)) if steps else 224.0)
+    return torch.tensor(spacing)
 
 
 @register(
@@ -104,8 +114,6 @@ class Moozy(SlideEncoderModel):
             )
 
         patch_sizes = kwargs.get("patch_sizes")
-        if patch_sizes is None:
-            patch_sizes = _tile_spacing(coords)
         invalid_mask = kwargs.get("invalid_mask", None)
 
         # Handle dimensionality
@@ -153,6 +161,8 @@ class Moozy(SlideEncoderModel):
                     coords = coords.unsqueeze(0)
 
         # Now embeddings is [B, H, W, 384], coords is [B, H, W, 2]
+        if patch_sizes is None:
+            patch_sizes = _tile_spacing(coords, invalid_mask)
         device = next(self.model.slide_encoder.parameters()).device
         embeddings = embeddings.to(device)
         coords = coords.to(device)

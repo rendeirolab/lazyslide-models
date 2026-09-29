@@ -116,13 +116,21 @@ def test_plain_timm_name_uses_its_pretrained_cfg() -> None:
     assert (ours - ref).abs().mean().item() < 1e-2
 
 
-def test_moozy_patch_size_is_level0_tile_spacing() -> None:
+def test_moozy_patch_size_is_per_slide_tile_spacing() -> None:
     from lazyslide_models.vision.moozy import _tile_spacing
 
-    # 448-px level-0 tiles (224 px at 0.5 mpp on a 40x scan) with gaps
+    # 448 px level-0 tiles (224 px at 0.5 mpp on a 40x scan) with gaps, and a
+    # 224 px grid offset by 100 px: pooling the two slides would give 100
     xs, ys = np.meshgrid([0, 448, 1344], [896, 1344])
-    coords = torch.tensor(np.stack([xs.ravel(), ys.ravel()], axis=1))[None]
-    assert _tile_spacing(coords) == 448
+    a = np.stack([xs.ravel(), ys.ravel()], axis=1)
+    coords = torch.tensor(np.stack([a, a // 2 + 100]))
+    np.testing.assert_array_equal(_tile_spacing(coords), [448, 224])
+
+    # zero-filled padding flagged invalid is not a tile
+    padded = torch.cat([coords, torch.zeros(2, 1, 2, dtype=coords.dtype)], dim=1)
+    invalid = torch.zeros(2, 7, dtype=torch.bool)
+    invalid[:, -1] = True
+    np.testing.assert_array_equal(_tile_spacing(padded, invalid), [448, 224])
 
 
 def test_haralick_keeps_white_pixels() -> None:

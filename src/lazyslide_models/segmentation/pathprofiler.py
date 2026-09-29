@@ -47,7 +47,8 @@ class CLAHE:
 class PathProfilerTissueSegmentation(SegmentationModel):
     """
     Tissue segmentation model from PathProfiler.
-    This model works at mpp=2.5 or 1.25
+    Upstream runs it at 1.25x or 2.5x magnification (``--mask_magnification``),
+    about 8 or 4 µm/px on a 40x scan.
     """
 
     classes = ("Background", "Tissue")

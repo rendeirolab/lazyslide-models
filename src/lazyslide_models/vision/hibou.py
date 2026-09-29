@@ -56,7 +56,9 @@ class Hibou(ImageModel):
     @torch.inference_mode()
     def encode_image_dense(self, image):
         hidden = self.model(pixel_values=image).last_hidden_state
-        return DenseTokens(cls_token=hidden[:, 0], patch_tokens=hidden[:, 1:])
+        # Tokens are [CLS, registers..., patches]
+        n = 1 + self.model.config.num_register_tokens
+        return DenseTokens(cls_token=hidden[:, 0], patch_tokens=hidden[:, n:])
 
     @torch.inference_mode()
     def encode_image(self, image):

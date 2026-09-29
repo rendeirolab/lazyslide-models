@@ -104,9 +104,10 @@ class STPath(FeaturePredictionModel):
         9.6 GB at 6,000. STPath is a spot-level model — a Visium section is a
         few thousand spots at 100 µm pitch — so a whole slide at that resolution
         does not fit: a typical slide tiled at 128 µm is around 12,000 tiles.
-        Use it on a region of interest, or tile at roughly 256 µm (512 px at
-        mpp 0.5, or 256 px at mpp 1.0), accepting that this is coarser than the
-        spacing the model was trained on.
+        Use it on a region of interest, or keep 256 px tiles at mpp 0.5
+        (GigaPath's input scale) and coarsen only their spacing, e.g.
+        ``stride_px=512`` for a 256 µm pitch, accepting that this is sparser
+        than the spots the model was trained on.
 
     .. note::
         In-context conditioning on observed expression, which upstream exposes

@@ -112,11 +112,16 @@ class SAM(SegmentationModel):
 
         inputs = inputs.to(self.model.device)
         outputs = self.model(**inputs, multimask_output=multimask_output)
-        # pred_masks shape: [B, num_prompts, num_masks, H, W]
-        # Flatten prompt and mask dims → [B, num_prompts*num_masks, H, W]
-        pred = outputs.pred_masks.cpu()
-        B = pred.shape[0]
-        prob = pred.reshape(B, -1, *pred.shape[-2:]).sigmoid()
+        # pred_masks are 256x256 logits in the padded 1024 frame; undo the
+        # processor's pad + resize so they land on the input pixels
+        masks = self.processor.post_process_masks(
+            outputs.pred_masks.cpu(),
+            inputs["original_sizes"].cpu(),
+            inputs["reshaped_input_sizes"].cpu(),
+            binarize=False,
+        )
+        # Per image [num_prompts, num_masks, H, W] → [B, num_prompts*num_masks, H, W]
+        prob = torch.stack([m.flatten(0, 1) for m in masks]).sigmoid()
         return SegmentationOutput(
             probability_map=prob,
         )

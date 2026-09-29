@@ -30,6 +30,7 @@ pytest tests/test_models.py -k "sizes and 512"           # multi-size at 512
 
 from __future__ import annotations
 
+import math
 import re
 from pathlib import Path
 
@@ -113,6 +114,21 @@ def test_model_attributes(model_name: str) -> None:
     bib_key = getattr(cls, "bib_key", None)
     if bib_key is not None and BIB_KEYS:
         assert bib_key in BIB_KEYS, f"bib_key '{bib_key}' not found in references.bib"
+
+
+@pytest.mark.parametrize("model_name", all_models())
+def test_model_eval_mode(model_name: str, load_model) -> None:
+    """Weights must load in inference mode, with dropout and DropPath off.
+
+    Exported ``.pt2`` graphs are skipped: their mode is baked in at export
+    time, and the flag on the loaded ``GraphModule`` does not reflect it.
+    """
+    from torch.fx import GraphModule
+
+    net = getattr(load_model(model_name), "model", None)
+    if not isinstance(net, torch.nn.Module) or isinstance(net, GraphModule):
+        pytest.skip("no eager torch module to check")
+    assert not net.training, f"{model_name} is in training mode after loading"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -202,6 +218,13 @@ def _assert_dense_tokens(out) -> None:
         f"vs patch_tokens {out.patch_tokens.shape[-1]}"
     )
 
+    # Inputs are square, so the patch grid is too
+    n = out.patch_tokens.shape[1]
+    assert math.isqrt(n) ** 2 == n, (
+        f"{n} patch tokens do not form a square grid: prefix or register "
+        f"tokens leaked into patch_tokens"
+    )
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # encode_text — models with encode_text method
@@ -261,6 +284,7 @@ def test_segment(model_name: str, load_model, device: str) -> None:
     img = _prepare_segment_image(model, inp.image, device)
     out = model.segment(img)
     VALIDATOR[ModelTask.segmentation](out)
+    _assert_maps_cover_input(out, inp.image)
 
 
 @pytest.mark.parametrize("model_name, image_size", models_with_method_x_size("segment"))
@@ -282,6 +306,19 @@ def test_segment_sizes(
     img = _prepare_segment_image(model, inp.image, device)
     out = model.segment(img)
     VALIDATOR[ModelTask.segmentation](out)
+    _assert_maps_cover_input(out, inp.image)
+
+
+def _assert_maps_cover_input(out, image) -> None:
+    """Maps are stitched back into the slide tile by tile, so they must be
+    in the input's pixel frame, not the network's resized one."""
+    for name in ("probability_map", "instance_map"):
+        m = getattr(out, name)
+        if m is not None:
+            assert tuple(m.shape[-2:]) == image.shape[:2], (
+                f"segment().{name} is {tuple(m.shape[-2:])}, "
+                f"input tile is {image.shape[:2]}"
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -5,12 +5,13 @@ import torch
 from lazyslide_models._model_registry import register
 from lazyslide_models.base import ModelTask, TilePredictionModel
 
-#: The six QC scores, in the order the model emits them.
+#: The six QC scores, in the order the model emits them (upstream run.py:
+#: output[..., 2] is the staining score and output[..., 3] the focus score).
 PATHPROFILER_QC_SCORES = (
     "diagnostic_quality",
     "visual_cleanliness",
-    "focus_issue",
     "staining_issue",
+    "focus_issue",
     "tissue_folding_present",
     "misc_artifacts_present",
 )
@@ -39,9 +40,9 @@ class PathProfilerQC(TilePredictionModel):
     +------------------------+---------------------------------------------------------------+
     | visual_cleanliness     | Normal & artefact-free (1=clean)                              |
     +------------------------+---------------------------------------------------------------+
-    | focus_issue            | Focus issue: 1=severe, 0.5=slight, 0=none                     |
-    +------------------------+---------------------------------------------------------------+
     | staining_issue         | Staining issue: 1=severe, 0.5=slight, 0=none                  |
+    +------------------------+---------------------------------------------------------------+
+    | focus_issue            | Focus issue: 1=severe, 0.5=slight, 0=none                     |
     +------------------------+---------------------------------------------------------------+
     | tissue_folding_present | Tissue folding present (1=yes)                                |
     +------------------------+---------------------------------------------------------------+
@@ -51,6 +52,7 @@ class PathProfilerQC(TilePredictionModel):
     """
 
     columns = PATHPROFILER_QC_SCORES
+    output_range = (0.0, 1.0)  # upstream clips the regression outputs
 
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
@@ -100,5 +102,5 @@ class PathProfilerQC(TilePredictionModel):
 
         """
         outputs = self.model(image)
-        outputs = outputs.T.detach().cpu().numpy()
+        outputs = outputs.T.detach().cpu().numpy().clip(0, 1)
         return dict(zip(PATHPROFILER_QC_SCORES, outputs, strict=True))

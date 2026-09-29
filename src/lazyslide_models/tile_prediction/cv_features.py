@@ -164,13 +164,14 @@ class Brightness(_CVFeatures):
 @register(
     key="contrast",
     task=ModelTask.cv_feature,
-    description="Standard deviation of pixel intensity",
+    description="Spread between the 1st and 99th gray-level percentiles",
 )
 class Contrast(_CVFeatures):
     """
     Calculate the contrast of a tile.
 
-    Contrast is calculated as the standard deviation of the pixel values.
+    Contrast is the gray-level range between ``lower_percentile`` and
+    ``upper_percentile``, as a fraction of the dtype range.
 
     The tile can be in shape (H, W, C) for a single image or (B, C, H, W) for a batch of images.
 
@@ -403,7 +404,8 @@ class HaralickTexture(_CVFeatures):
         """Calculate the Gray Level Co-occurrence Matrix."""
         # Quantize the image to reduce the number of intensity values
         bins = np.linspace(0, 255, self.levels + 1)
-        quantized = np.digitize(image, bins) - 1
+        # digitize puts 255 past the last edge; clip it into the top level
+        quantized = np.clip(np.digitize(image, bins) - 1, 0, self.levels - 1)
 
         # Calculate GLCM for each distance and angle
         glcm = np.zeros(

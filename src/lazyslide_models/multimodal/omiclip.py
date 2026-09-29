@@ -2,9 +2,10 @@ import warnings
 
 import torch
 import torch.nn.functional as F
+from timm.data.constants import OPENAI_CLIP_MEAN, OPENAI_CLIP_STD
 
 from lazyslide_models._model_registry import register
-from lazyslide_models._utils import find_stack_level, hf_access
+from lazyslide_models._utils import find_stack_level, get_default_transform, hf_access
 from lazyslide_models.base import ImageTextModel, ModelTask
 
 
@@ -60,6 +61,10 @@ class OmiCLIP(ImageTextModel):
         self.tokenizer = get_tokenizer("coca_ViT-L-14")
         self.model.eval()
 
+    def get_transform(self):
+        # open_clip eval preprocess: Resize(224, bicubic) -> CenterCrop, CLIP stats
+        return get_default_transform(mean=OPENAI_CLIP_MEAN, std=OPENAI_CLIP_STD)
+
     @torch.inference_mode()
     def encode_image(
         self,
@@ -72,7 +77,7 @@ class OmiCLIP(ImageTextModel):
 
         if not isinstance(image, torch.Tensor):
             # Preprocess the image, then stack to create a batch of size 1
-            image = self.processor(image)
+            image = self.get_transform()(image).unsqueeze(0)
 
         # Move image to the same device as the model
         try:

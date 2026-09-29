@@ -1,9 +1,11 @@
 import inspect
+import math
 import os
 from contextlib import contextmanager
 from types import FrameType
 
 import torch
+from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
 
 def require_transformers_below_5(model_name: str, reason: str) -> None:
@@ -70,8 +72,19 @@ def hf_access(name: str):
         ) from e
 
 
-def get_default_transform(img_size=(224, 224)):
-    """The default transform for the model."""
+def get_default_transform(
+    img_size=(224, 224),
+    *,
+    interpolation="bicubic",
+    crop_pct=1.0,
+    mean=IMAGENET_DEFAULT_MEAN,
+    std=IMAGENET_DEFAULT_STD,
+):
+    """Eval transform in timm's convention.
+
+    Resize to ``img_size / crop_pct`` then center-crop to ``img_size``, so
+    ``crop_pct=0.875`` at 224 is the classic ``Resize(256) -> CenterCrop(224)``.
+    """
     from torchvision.transforms import InterpolationMode
     from torchvision.transforms.v2 import (
         CenterCrop,
@@ -86,13 +99,13 @@ def get_default_transform(img_size=(224, 224)):
         ToImage(),
         ToDtype(dtype=torch.float32, scale=True),
         Resize(
-            size=img_size,
-            interpolation=InterpolationMode.BICUBIC,
+            size=tuple(math.floor(s / crop_pct) for s in img_size),
+            interpolation=InterpolationMode(interpolation),
             max_size=None,
             antialias=True,
         ),
         CenterCrop(img_size),
-        Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+        Normalize(mean=mean, std=std),
     ]
     return Compose(transforms)
 

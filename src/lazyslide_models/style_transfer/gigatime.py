@@ -58,12 +58,13 @@ class GigaTIME(MarkerMapModel):
         from huggingface_hub import hf_hub_download
 
         with hf_access("prov-gigatime/GigaTIME"):
-            weights_file = hf_hub_download(
+            weights_file = model_path or hf_hub_download(
                 repo_id="prov-gigatime/GigaTIME",
                 filename="model.pth",
+                token=token,
             )
 
-        self.model = GigaTIMEModel(num_classes=23)
+        self.model = GigaTIMEModel(num_classes=len(GIGATIME_CHANNELS))
         self.model.load_state_dict(torch.load(weights_file, map_location="cpu"))
         self.model.eval()
 

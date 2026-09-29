@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from lazyslide_models._model_registry import register
 from lazyslide_models.base import ModelTask, TimmViTModel
 
@@ -19,6 +21,9 @@ from lazyslide_models.base import ModelTask, TimmViTModel
 )
 class MSTAR(TimmViTModel):
     """mSTAR tile encoder: a ViT-L/16 distilled with pathology reports and RNA-Seq."""
+
+    # README: transforms.Resize(224); the hub pretrained_cfg is a stale augreg one
+    transform_kws: ClassVar[dict] = {"interpolation": "bilinear"}
 
     def __init__(self, model_path=None, token=None):
         super().__init__(

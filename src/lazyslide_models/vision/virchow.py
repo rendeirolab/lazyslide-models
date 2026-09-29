@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import torch
 
 from lazyslide_models._model_registry import register
@@ -20,6 +22,8 @@ from lazyslide_models.base import ModelTask, TimmViTModel
 )
 class Virchow(TimmViTModel):
     _hf_hub_id = "paige-ai/Virchow"
+    # bicubic, crop_pct 1, ImageNet: what the hub pretrained_cfg declares
+    transform_kws: ClassVar[dict] = {}
 
     def __init__(self, model_path=None, token=None):
         from timm.layers import SwiGLUPacked

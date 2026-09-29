@@ -29,7 +29,6 @@ class WaivEncoder(ImageModel):
         self.model.eval()
 
     def get_transform(self):
-        from torchvision.transforms import InterpolationMode
         from torchvision.transforms.v2 import (
             CenterCrop,
             Compose,
@@ -45,7 +44,7 @@ class WaivEncoder(ImageModel):
         return Compose(
             [
                 ToImage(),
-                Resize(224, interpolation=InterpolationMode.BICUBIC, antialias=True),
+                Resize(224, antialias=True),  # README: T.Resize(224), bilinear
                 CenterCrop(224),
                 ToDtype(dtype=torch.float32, scale=True),
                 Normalize(mean=tuple(config.pixel_mean), std=tuple(config.pixel_std)),

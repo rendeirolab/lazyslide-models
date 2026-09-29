@@ -12,6 +12,7 @@ from .h_optimus import H0Mini, HOptimus0, HOptimus1
 from .hibou import HibouB, HibouL
 from .lunit import (
     LunitDINOPatch8,
+    LunitDINOPatch8Moozy,
     LunitDINOPatch16,
     LunitResNet50BT,
     LunitResNet50MoCoV2,
@@ -48,6 +49,7 @@ __all__ = [
     "HibouB",
     "HibouL",
     "LunitDINOPatch8",
+    "LunitDINOPatch8Moozy",
     "LunitDINOPatch16",
     "LunitResNet50BT",
     "LunitResNet50MoCoV2",

@@ -1,4 +1,5 @@
 import os
+from typing import ClassVar
 
 import torch
 
@@ -27,6 +28,11 @@ from lazyslide_models.base import (
     encode_dim=1536,
 )
 class GigaPath(TimmViTModel):
+    """Prov-GigaPath tile encoder. Upstream feeds it 256 px tiles."""
+
+    # README: Resize(256, bicubic) -> CenterCrop(224); the hub cfg says crop_pct 1
+    transform_kws: ClassVar[dict] = {"crop_pct": 0.875}
+
     def __init__(self, model_path=None, token=None):
         # Version check
         import timm
@@ -68,6 +74,7 @@ class GigaPathFlash(TimmViTModel):
     """GigaPath-Flash tile encoder: a DINOv2-small ViT-S/16 with SwiGLU FFN."""
 
     _hf_hub_id = "prov-gigapath/prov-gigapath-flash"
+    transform_kws: ClassVar[dict] = {"crop_pct": 0.875}  # same recipe as GigaPath
 
     def __init__(self, model_path=None, token=None):
         from huggingface_hub import hf_hub_download
@@ -161,6 +168,8 @@ class _GigaPathSlideEncoder(SlideEncoderModel):
                     constants.HF_HOME, self._hf_hub_id.replace("/", "--")
                 ),
             )
+        # create_model returns train mode (dropout 0.25, DropPath 0.1)
+        self.model.eval()
 
     def encode_slide(self, embeddings, coords=None, **kwargs) -> SlideEncodeOutput:
         # Upstream DilatedAttention always calls flash_attn, which only

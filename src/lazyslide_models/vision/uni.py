@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import torch
 
 from lazyslide_models._model_registry import register
@@ -19,6 +21,9 @@ from lazyslide_models.base import ModelTask, TimmViTModel
     encode_dim=1024,
 )
 class UNI(TimmViTModel):
+    # README: transforms.Resize(224), torchvision's default bilinear (#29)
+    transform_kws: ClassVar[dict] = {"interpolation": "bilinear"}
+
     def __init__(self, model_path=None, token=None):
         # from huggingface_hub import hf_hub_download
         # model_path = hf_hub_download("MahmoodLab/UNI", filename="pytorch_model.bin")
@@ -59,6 +64,8 @@ class UNI(TimmViTModel):
     encode_dim=1536,
 )
 class UNI2(TimmViTModel):
+    transform_kws: ClassVar[dict] = {"interpolation": "bilinear"}
+
     def __init__(self, model_path=None, token=None):
         import timm
 

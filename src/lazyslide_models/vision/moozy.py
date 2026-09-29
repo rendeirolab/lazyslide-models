@@ -6,6 +6,19 @@ from lazyslide_models._model_registry import register
 from lazyslide_models.base import ModelTask, SlideEncodeOutput, SlideEncoderModel
 
 
+def _tile_spacing(coords) -> float:
+    """Level-0 distance between adjacent tiles, MOOZY's ``patch_size_level0``.
+
+    The smallest step between distinct x (or y) origins; upstream snaps tiles
+    to a non-overlapping grid with this step. Falls back to 224 for a single
+    tile, where no distance enters the ALiBi bias.
+    """
+    c = torch.as_tensor(coords).reshape(-1, 2)
+    steps = [torch.unique(c[:, i]).diff() for i in range(2)]
+    steps = [s.min() for s in steps if s.numel()]
+    return float(min(steps)) if steps else 224.0
+
+
 @register(
     key="moozy",
     task=ModelTask.slide_encoder,
@@ -18,14 +31,16 @@ from lazyslide_models.base import ModelTask, SlideEncodeOutput, SlideEncoderMode
     bib_key="Kotp2026-mz",
     param_size="85.77M",
     encode_dim=768,
-    vision_encoder="lunit-dino-s8",
+    vision_encoder="lunit-dino-s8-moozy",
 )
 class Moozy(SlideEncoderModel):
     """MOOZY slide and case encoder.
 
     The slide encoder requires spatial coordinates and patch sizes for its
-    ALiBi position bias. Pass ``coords`` (xy positions) and ``patch_sizes``
-    as keyword arguments to :meth:`encode_slide`.
+    ALiBi position bias. Pass ``coords`` (level-0 xy positions) to
+    :meth:`encode_slide`; ``patch_sizes`` defaults to their tile spacing.
+    Extract the tile features with ``lunit-dino-s8-moozy``, which reproduces
+    the preprocessing MOOZY was trained on.
 
     The case transformer aggregates multiple slide embeddings into a single
     patient-level representation via :meth:`encode_case`.
@@ -72,7 +87,8 @@ class Moozy(SlideEncoderModel):
 
         **kwargs
             ``patch_sizes`` : float or torch.Tensor, optional
-                Patch size in level-0 pixels. Defaults to 224.
+                Patch size in level-0 pixels. Defaults to the tile spacing
+                read off ``coords`` (224 px at 0.5 mpp is 448 on a 40x scan).
             ``invalid_mask`` : torch.Tensor, optional
                 Boolean mask ``[B, H, W]`` where True = invalid/background.
 
@@ -87,7 +103,9 @@ class Moozy(SlideEncoderModel):
                 "Pass coords as xy positions matching the spatial layout of embeddings."
             )
 
-        patch_sizes = kwargs.get("patch_sizes", 224)
+        patch_sizes = kwargs.get("patch_sizes")
+        if patch_sizes is None:
+            patch_sizes = _tile_spacing(coords)
         invalid_mask = kwargs.get("invalid_mask", None)
 
         # Handle dimensionality

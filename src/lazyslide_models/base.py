@@ -7,6 +7,7 @@ from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     NamedTuple,
     Protocol,
     Self,
@@ -359,7 +360,7 @@ class ImageModel(ModelBase):
             [
                 ToImage(),
                 ToDtype(dtype=torch.float32, scale=True),
-                Resize(size=(224, 224), antialias=False),
+                Resize(size=(224, 224), antialias=True),
                 Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             ]
         )
@@ -373,6 +374,12 @@ class ImageModel(ModelBase):
 
 
 class TimmModel(ModelBase):
+    #: Upstream eval recipe, forwarded to ``get_default_transform``
+    #: (``interpolation``, ``crop_pct``, ``mean``, ``std``). Registered models
+    #: pin it because hub ``pretrained_cfg`` entries are often stale; ``None``
+    #: (a plain timm name) reads the model's own ``pretrained_cfg``.
+    transform_kws: ClassVar[dict | None] = None
+
     def __init__(self, name, token=None, compile=False, compile_kws=None, **kwargs):
         import timm
         from huggingface_hub import login
@@ -399,7 +406,13 @@ class TimmModel(ModelBase):
             self.img_size = (224, 224)
 
     def get_transform(self):
-        return get_default_transform(self.img_size)
+        kws = self.transform_kws
+        if kws is None:
+            from timm.data import resolve_model_data_config
+
+            cfg = resolve_model_data_config(self.model)
+            kws = {k: cfg[k] for k in ("interpolation", "crop_pct", "mean", "std")}
+        return get_default_transform(self.img_size, **kws)
 
     @torch.inference_mode()
     def encode_image(self, image: torch.Tensor, *args, **kwargs) -> ArrayLike:

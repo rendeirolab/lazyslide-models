@@ -95,6 +95,40 @@ def test_dense_models_name_their_output(model_name: str) -> None:
     )
 
 
+# ── output_range ──────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("model_name", PREDICTION_MODELS)
+def test_output_range_is_a_low_high_pair(model_name: str) -> None:
+    """When declared, the range has to be usable for choosing a storage dtype."""
+    cls = MODEL_REGISTRY[model_name]
+    if not issubclass(cls, DensePredictionModel):
+        return
+    rng = cls.output_range
+    if rng is None:
+        return  # unbounded, which is allowed
+    assert isinstance(rng, tuple) and len(rng) == 2, (
+        f"{model_name}: output_range must be a (low, high) tuple, got {rng!r}"
+    )
+    low, high = rng
+    assert isinstance(low, float) and isinstance(high, float), (
+        f"{model_name}: output_range entries must be floats, got {rng!r}"
+    )
+    assert low < high, f"{model_name}: output_range low must be below high, got {rng!r}"
+
+
+def test_output_range_defaults_to_unbounded() -> None:
+    """A model that says nothing about its range is treated as unbounded."""
+
+    class Unbounded(MarkerMapModel):
+        channel_names = ("CD3",)
+
+        def predict(self, image):
+            raise NotImplementedError
+
+    assert Unbounded.output_range is None
+
+
 # ── The replaced mechanisms are gone ──────────────────────────────────────────
 
 

@@ -52,6 +52,11 @@ GIGATIME_CHANNELS = (
 )
 class GigaTIME(MarkerMapModel):
     channel_names = GIGATIME_CHANNELS
+    # Unbounded, because `predict` currently returns raw logits: LazySlide
+    # still applies the sigmoid itself. That breaks the post-activation rule
+    # this class documents, and both halves have to move together, so the fix
+    # lands with the runner change. GigaTIMEFlash below already does it right.
+    output_range = None
 
     def __init__(self, model_path: str | None = None, token: str | None = None):
         from huggingface_hub import hf_hub_download
@@ -236,6 +241,9 @@ class GigaTIMEFlash(MarkerMapModel):
     """
 
     channel_names = GIGATIME_FLASH_CHANNELS
+    # `predict` applies the sigmoid its `config.json` asks for, so the values
+    # arrive activated and bounded.
+    output_range = (0.0, 1.0)
 
     _hf_hub_id = "prov-gigatime/gigatime-flash"
 

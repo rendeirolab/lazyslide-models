@@ -224,9 +224,10 @@ class TilePredictionModelProtocol(ModelBaseProtocol, Protocol):
 
 @runtime_checkable
 class DensePredictionModelProtocol(ModelBaseProtocol, Protocol):
-    """One value per pixel; ``predict`` returns ``[B, C, H, W]``."""
+    """One value per pixel; ``predict`` returns an activated ``[B, C, H, W]``."""
 
     output_mpp: float | None
+    output_range: tuple[float, float] | None
 
     def predict(self, image, *args, **kwargs): ...
 
@@ -492,7 +493,9 @@ class TilePredictionModel(ModelBase):
         """Predict from a ``[B, C, H, W]`` tile batch.
 
         Returns a dict of NumPy arrays, one length-``B`` column per entry, so a
-        model can return several named outputs at once.
+        model can return several named outputs at once. As with
+        :class:`DensePredictionModel`, the values are final and
+        post-activation: a caller never applies one.
         """
         raise NotImplementedError
 
@@ -504,21 +507,41 @@ class DensePredictionModel(ModelBase):
     with one ``isinstance`` check and share a single stitching path between
     :class:`MarkerMapModel` and :class:`VirtualStainModel`.
 
+    ``predict`` returns the model's **final, post-activation** output. Whatever
+    activation the model was trained with is applied inside ``predict``, so a
+    caller never applies one. Without that rule the convention varies per
+    model, a runner has to guess, and a runner that guesses wrong silently
+    produces plausible but incorrect values rather than raising.
+
+    The values stay in the model's own units. They are not forced onto a common
+    scale, because these models are not all classifiers: GigaTIME is trained
+    with a binary cross-entropy objective and lands in ``[0, 1]``, while
+    MIPHEI-ViT regresses normalised marker intensity into ``[-0.9, 0.9]``.
+    Squashing the second through a sigmoid to match the first would destroy the
+    intensity scale. Declare the range with ``output_range`` instead.
+
     Attributes
     ----------
     output_mpp : float, optional
         Resolution of the output. ``None`` means the output lands on the input
         tile's own grid, which is the common case; set it when the model
         predicts onto a coarser or finer grid than it was given.
+    output_range : tuple of float, optional
+        ``(low, high)`` bounds the post-activation values fall within, so a
+        runner can pick a storage dtype instead of defaulting to float32.
+        ``None`` means unbounded, which is also what a model with a linear
+        output head should declare.
     """
 
     output_mpp: float | None = None
+    output_range: tuple[float, float] | None = None
 
     @abstractmethod
     def predict(self, image):
         """Predict from a ``[B, C, H, W]`` tile batch.
 
-        Returns a float tensor of shape ``[B, C, H, W]``.
+        Returns a float tensor of shape ``[B, C, H, W]``, already activated and
+        within :attr:`output_range` when that is declared.
         """
         raise NotImplementedError
 

@@ -14,7 +14,8 @@
 #   CI_XDIST_WORKERS pytest -n (default 4; GPU jobs should pass 1)
 #   CI_INSTALL_FLASH_ATTN  set to 1 to install flash-attn (slide-encoder GPU job)
 #   CI_CODECOV       set to 1 to collect coverage.xml and upload to Codecov
-#   CODECOV_TOKEN    required when CI_CODECOV=1
+#   CODECOV_TOKEN    Codecov upload token; when empty the upload is skipped
+#   CI_BRANCH        branch Codecov files the coverage under
 set -euo pipefail
 
 REPO_URL="${CI_REPO_URL:-https://github.com/rendeirolab/lazyslide-models.git}"
@@ -97,16 +98,19 @@ uv run --no-sync pytest tests/ \
   --maxfail=3 \
   -v
 
+# Coverage is a report, not a test, so it never changes the exit code. A
+# missing token or a failed upload prints a ::warning:: line instead. The job
+# log is streamed into the Actions step, so GitHub shows it on the run page.
 if [ "${CI_CODECOV:-}" = "1" ]; then
   if [ -z "${CODECOV_TOKEN:-}" ]; then
-    echo "CODECOV_TOKEN is empty; cannot upload coverage." >&2
-    exit 1
+    echo "::warning::CODECOV_TOKEN is empty; coverage was not uploaded."
+  else
+    # The checkout is a detached HEAD, which the uploader would file under a
+    # branch called "HEAD", so pass the real branch.
+    curl -fsSL -o /tmp/codecov https://uploader.codecov.io/latest/linux/codecov &&
+      chmod +x /tmp/codecov &&
+      /tmp/codecov --token "${CODECOV_TOKEN}" --flags models --file coverage.xml \
+        --branch "${CI_BRANCH:-}" --nonZero ||
+      echo "::warning::Codecov upload failed; coverage was not uploaded."
   fi
-  if ! command -v curl >/dev/null 2>&1; then
-    apt-get update -qq
-    apt-get install -y -qq curl ca-certificates
-  fi
-  curl -fsSL -o /tmp/codecov https://uploader.codecov.io/latest/linux/codecov
-  chmod +x /tmp/codecov
-  /tmp/codecov --token "${CODECOV_TOKEN}" --flags models --file coverage.xml --nonZero
 fi

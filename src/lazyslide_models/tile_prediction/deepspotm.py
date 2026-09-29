@@ -61,6 +61,9 @@ class DeepSpotM(TilePredictionModel):
         Hugging Face access token, used to log in before download.
     """
 
+    # The gene panel depends on the `genes` argument and not known before init
+    columns = None
+
     def __init__(
         self,
         source: str = "scgpt",
@@ -97,6 +100,15 @@ class DeepSpotM(TilePredictionModel):
         else:
             self.genes = list(genes)
 
+        # Now that the panel is known, record the concrete columns. Both
+        # branches are exact: `self.genes` when the caller picked a panel, the
+        # backbone's own list otherwise.
+        self.columns = (
+            tuple(self.genes)
+            if self.genes is not None
+            else tuple(self.model.gene_names)
+        )
+
     def get_transform(self):
         # Return DeepSpot-M's own transform, not LazySlide's default. The
         # backbone is normalized with mean/std 0.5 (Midnight), so applying the
@@ -113,10 +125,10 @@ class DeepSpotM(TilePredictionModel):
         image = image.to(next(self.model.parameters()).device)
         if self.genes is not None:
             expression = self.model.predict_genes(image, self.genes)
-            names = self.genes
         else:
             expression, _, _ = self.model(image)
-            names = self.model.gene_names
 
         expression = expression.float().cpu().numpy()
-        return dict(zip(names, np.asarray(expression).T, strict=True))
+        # `columns` was built from the same panel in __init__, so it is the
+        # single source of truth for column order.
+        return dict(zip(self.columns, np.asarray(expression).T, strict=True))

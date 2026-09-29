@@ -30,6 +30,16 @@ def _correct_image_format(image):
 
 
 class _CVFeatures(TilePredictionModel, ABC):
+    #: Subclasses whose ``_func`` returns a dict set this explicitly; for the
+    #: rest it is derived below from the class name, which is the same rule
+    #: ``_process_batch`` uses to key its result.
+    columns: tuple[str, ...] | None = None
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if "columns" not in cls.__dict__:
+            cls.columns = (cls.__name__.lower(),)
+
     def to(self, device):
         return self
 
@@ -80,8 +90,12 @@ class CVCompose(_CVFeatures):
         List of CV feature instances to be composed.
     """
 
+    # Composed from the children, so the class-name default would be wrong.
+    columns = None
+
     def __init__(self, *models):
         self.models = models
+        self.columns = tuple(n for m in models for n in m.columns)
 
     def _func(self, image):
         pass
@@ -117,6 +131,8 @@ class SplitRGB(_CVFeatures):
     dim : str
         Dimension of the image. Default is "xyc".
     """
+
+    columns = ("red", "green", "blue")
 
     def __init__(
         self,
@@ -367,6 +383,14 @@ class HaralickTexture(_CVFeatures):
     levels : int
         Number of gray levels to use in the GLCM.
     """
+
+    columns = (
+        "texture_energy",
+        "texture_contrast",
+        "texture_homogeneity",
+        "texture_correlation",
+        "texture_entropy",
+    )
 
     def __init__(self, distances=None, angles=None, levels=8):
         self.distances = distances if distances is not None else [1]

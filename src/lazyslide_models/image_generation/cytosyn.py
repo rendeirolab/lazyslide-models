@@ -15,7 +15,7 @@ from lazyslide_models.base import ImageGenerationModel, ModelTask
     license="CC BY-NC-ND 4.0",
     description="A REPA-E Histopathology Image Generation Model",
     commercial=False,
-    github_url="https://github.com/prov-gigatime/GigaTIME",
+    hf_url="https://huggingface.co/Owkin-Bioptimus/CytoSyn",
     paper_url="https://www.owkin.com/blogs-case-studies/"
     "cytosyn-a-state-of-the-art-diffusion-model-for-histopathology-image-generation",
     param_size="766M",

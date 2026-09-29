@@ -17,7 +17,11 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from lazyslide_models.base import ModelTask, SegmentationOutput
+from lazyslide_models.base import (
+    DensePredictionModel,
+    ModelTask,
+    SegmentationOutput,
+)
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -149,13 +153,35 @@ def check_tile_prediction(output) -> None:
         )
 
 
-def check_style_transfer(output) -> None:
-    """predict → float Tensor, 2-D (B,C) or 4-D (B,C,H,W)."""
-    t = _tensor(output, "StyleTransferModel.predict")
-    assert t.is_floating_point(), f"style predict: expected float dtype, got {t.dtype}"
-    assert t.ndim in (2, 4), (
-        f"style predict: expected 2-D (tile->values) or 4-D (tile->image) tensor, got shape {tuple(t.shape)}"
-    )
+def check_prediction(model, output) -> None:
+    """``predict(image)`` must return the type its model class promises.
+
+    Dispatches on the model class, which is the discriminator in this design.
+    It does not check the channel count against the declared names. That is
+    deliberate: output shapes are not validated anywhere.
+
+    It does check values against ``output_range`` when a model declares one.
+    That is what catches a model returning raw logits while claiming a bounded
+    range, which is the mistake the post-activation rule exists to prevent.
+    """
+    if isinstance(model, DensePredictionModel):
+        t = _tensor(output, "predict()")
+        assert t.is_floating_point(), f"predict(): expected float dtype, got {t.dtype}"
+        assert t.ndim == 4, (
+            f"predict(): a dense model must return 4-D [B, C, H, W], "
+            f"got shape {tuple(t.shape)}"
+        )
+        if model.output_range is not None:
+            low, high = model.output_range
+            got_low, got_high = t.min().item(), t.max().item()
+            assert low <= got_low and got_high <= high, (
+                f"predict() returned values in [{got_low:.3f}, {got_high:.3f}], "
+                f"outside the declared output_range {model.output_range}. "
+                f"predict must return final, post-activation output."
+            )
+        return
+
+    check_tile_prediction(output)
 
 
 def check_image_generation(output) -> None:
@@ -165,14 +191,14 @@ def check_image_generation(output) -> None:
 
 # ── Dispatch table ────────────────────────────────────────────────────────────
 
+#: ``tile_prediction``/``style_transfer``/``cv_feature`` are absent: their
+#: return type follows the model's class, so they go through
+#: :func:`check_prediction`, which needs the model rather than just its output.
 VALIDATOR: dict = {
     ModelTask.vision: check_vision,
     ModelTask.multimodal: check_multimodal,  # (img_emb, txt_emb)
     ModelTask.segmentation: check_segmentation,
     ModelTask.slide_encoder: check_slide_encoder,
-    ModelTask.tile_prediction: check_tile_prediction,
-    ModelTask.cv_feature: check_tile_prediction,
     ModelTask.feature_prediction: check_tile_prediction,
-    ModelTask.style_transfer: check_style_transfer,
     ModelTask.image_generation: check_image_generation,
 }

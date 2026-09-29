@@ -3,7 +3,37 @@ from torch import nn
 
 from lazyslide_models._model_registry import register
 from lazyslide_models._utils import hf_access
-from lazyslide_models.base import InputConstraint, ModelTask, StyleTransferModel
+from lazyslide_models.base import (
+    InputConstraint,
+    MarkerMapModel,
+    ModelTask,
+)
+
+GIGATIME_CHANNELS = (
+    "DAPI",
+    "TRITC",  # background channel not used in analysis
+    "Cy5",  # background channel not used in analysis
+    "PD-1",
+    "CD14",
+    "CD4",
+    "T-bet",
+    "CD34",
+    "CD68",
+    "CD16",
+    "CD11c",
+    "CD138",
+    "CD20",
+    "CD3",
+    "CD8",
+    "PD-L1",
+    "CK",
+    "Ki67",
+    "Tryptase",
+    "Actin-D",
+    "Caspase3-D",
+    "PHH3-B",
+    "Transgelin",
+)
 
 
 @register(
@@ -20,23 +50,29 @@ from lazyslide_models.base import InputConstraint, ModelTask, StyleTransferModel
     param_size="9M",
     flops="52.88G",
 )
-class GigaTIME(StyleTransferModel):
+class GigaTIME(MarkerMapModel):
+    channel_names = GIGATIME_CHANNELS
+    output_range = (0.0, 1.0)
+
     def __init__(self, model_path: str | None = None, token: str | None = None):
         from huggingface_hub import hf_hub_download
 
         with hf_access("prov-gigatime/GigaTIME"):
-            weights_file = hf_hub_download(
+            weights_file = model_path or hf_hub_download(
                 repo_id="prov-gigatime/GigaTIME",
                 filename="model.pth",
+                token=token,
             )
 
-        self.model = GigaTIMEModel(num_classes=23)
+        self.model = GigaTIMEModel(num_classes=len(GIGATIME_CHANNELS))
         self.model.load_state_dict(torch.load(weights_file, map_location="cpu"))
         self.model.eval()
 
     @torch.inference_mode()
     def predict(self, image):
-        return self.model(image)
+        # The network ends in a plain conv and was trained with a sigmoid
+        # objective, so activate here: `predict` returns final values.
+        return torch.sigmoid(self.model(image))
 
     def get_transform(self):
         import torch
@@ -54,38 +90,6 @@ class GigaTIME(StyleTransferModel):
                 Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             ]
         )
-
-    def get_channel_names(self):
-        # Return channel names for the 50 protein markers
-        markers = [
-            "DAPI",
-            "TRITC",  # background channel not used in analysis
-            "Cy5",  # background channel not used in analysis
-            "PD-1",
-            "CD14",
-            "CD4",
-            "T-bet",
-            "CD34",
-            "CD68",
-            "CD16",
-            "CD11c",
-            "CD138",
-            "CD20",
-            "CD3",
-            "CD8",
-            "PD-L1",
-            "CK",
-            "Ki67",
-            "Tryptase",
-            "Actin-D",
-            "Caspase3-D",
-            "PHH3-B",
-            "Transgelin",
-        ]
-        return markers
-
-    def output_shape(self):
-        return 50, 256, 256
 
     def check_input_tile(self, mpp, size_x=None, size_y=None) -> bool:
         return True
@@ -227,13 +231,18 @@ GIGATIME_FLASH_CHANNELS = (
     flops="13.68G",
     input_constraint=InputConstraint(min=256, max=256),
 )
-class GigaTIMEFlash(StyleTransferModel):
+class GigaTIMEFlash(MarkerMapModel):
     """GigaTIME-flash: 23-channel virtual mIF maps from 256x256 H&E tiles.
 
     The HuggingFace repo ships only ``model.pth`` and ``config.json`` — the
     architecture lives in the upstream notebook
     ``scripts/gigatime_flash_testing.ipynb`` and is reproduced below.
     """
+
+    channel_names = GIGATIME_FLASH_CHANNELS
+    # `predict` applies the sigmoid its `config.json` asks for, so the values
+    # arrive activated and bounded.
+    output_range = (0.0, 1.0)
 
     _hf_hub_id = "prov-gigatime/gigatime-flash"
 
@@ -257,8 +266,8 @@ class GigaTIMEFlash(StyleTransferModel):
 
     @torch.inference_mode()
     def predict(self, image):
-        # `config.json` sets `apply_sigmoid: true`; the forward pass returns
-        # logits. (GigaTIME v1 has no such flag and returns raw logits.)
+        # `config.json` sets `apply_sigmoid: true` and the forward pass returns
+        # logits, so activate here: `predict` returns final values.
         return torch.sigmoid(self.model(image))
 
     def get_transform(self):
@@ -281,12 +290,6 @@ class GigaTIMEFlash(StyleTransferModel):
                 Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             ]
         )
-
-    def get_channel_names(self):
-        return GIGATIME_FLASH_CHANNELS
-
-    def output_shape(self):
-        return len(GIGATIME_FLASH_CHANNELS), 256, 256
 
 
 def _remap_flash_state_dict(model: nn.Module, checkpoint: dict) -> dict:

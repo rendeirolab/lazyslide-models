@@ -171,17 +171,29 @@ def check_prediction(model, output) -> None:
             f"predict(): a dense model must return 4-D [B, C, H, W], "
             f"got shape {tuple(t.shape)}"
         )
-        if model.output_range is not None:
-            low, high = model.output_range
-            got_low, got_high = t.min().item(), t.max().item()
-            assert low <= got_low and got_high <= high, (
-                f"predict() returned values in [{got_low:.3f}, {got_high:.3f}], "
-                f"outside the declared output_range {model.output_range}. "
-                f"predict must return final, post-activation output."
-            )
+        _check_output_range(model, t)
         return
 
     check_tile_prediction(output)
+    for val in output.values():
+        _check_output_range(model, val)
+
+
+def _check_output_range(model, values) -> None:
+    """Values must fall within the model's declared ``output_range``, if any.
+
+    Checked only when declared: some tile predictions are labels, not numbers.
+    """
+    output_range = getattr(model, "output_range", None)
+    if output_range is None:
+        return
+    low, high = output_range
+    got_low, got_high = float(values.min()), float(values.max())
+    assert low <= got_low and got_high <= high, (
+        f"predict() returned values in [{got_low:.3f}, {got_high:.3f}], "
+        f"outside the declared output_range {output_range}. "
+        f"predict must return final, post-activation output."
+    )
 
 
 def check_image_generation(output) -> None:

@@ -123,7 +123,7 @@ class ROSIE(TilePredictionModel):
             [
                 ToImage(),
                 ToDtype(dtype=torch.float32, scale=True),
-                Resize(size=(224, 224), antialias=False),
+                Resize(size=(224, 224), antialias=True),  # as evaluate.py
                 Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             ]
         )

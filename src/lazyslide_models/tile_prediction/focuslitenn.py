@@ -1,6 +1,5 @@
 import warnings
 
-import numpy as np
 import torch
 
 from lazyslide_models._model_registry import register
@@ -65,4 +64,4 @@ class FocusLiteNN(TilePredictionModel):
         output = self.model(image)
         # Clip the output to > 0
         output = torch.clamp(output, min=0)
-        return {"focus": np.asarray(output.squeeze(-1))}
+        return {"focus": output.squeeze(-1).cpu().numpy()}

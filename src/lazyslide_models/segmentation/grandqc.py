@@ -102,7 +102,7 @@ class GrandQCArtifact(SegmentationModel):
 class GrandQCTissue(
     SegmentationModel,
 ):
-    classes = ("Background", "Tissue")
+    classes = ("Tissue", "Background")  # upstream: class 0 is tissue
 
     def __init__(self):
         from huggingface_hub import hf_hub_download

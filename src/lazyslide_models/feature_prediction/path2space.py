@@ -26,6 +26,10 @@ class Path2Space(FeaturePredictionModel):
     The model consumes raw 768-dimensional CTransPath tile features and
     returns one NumPy array per gene. Gene names and output ordering are read
     from the gene list published alongside the exported ensemble.
+
+    Upstream extracts those features from Macenko stain-normalized tiles
+    (the companion pipeline's frozen normalizer). Normalize tiles the same way,
+    e.g. with a ``transform`` passed to feature extraction.
     """
 
     features_model_name = "ctranspath"

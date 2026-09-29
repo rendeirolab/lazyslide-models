@@ -269,6 +269,7 @@ jobs:
       - name: Run shard on Hugging Face Jobs
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
           set -euo pipefail
           if [ -z "${HF_TOKEN}" ]; then
@@ -289,7 +290,8 @@ jobs:
           if [ "${{ github.event_name }}" = "schedule" ]; then
             HF_JOB+=(
               --env "CI_CODECOV=1"
-              --env "CODECOV_TOKEN=${{ secrets.CODECOV_TOKEN }}"
+              --env "CI_BRANCH=${{ github.ref_name }}"
+              --secrets CODECOV_TOKEN
             )
           fi
           "${HF_JOB[@]}" \

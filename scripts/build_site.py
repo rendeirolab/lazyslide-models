@@ -221,6 +221,12 @@ CATEGORY = {
     "image_generation": "Image generation",
 }
 
+#: ``ModelTask`` records which runner drives a model, not what it predicts.
+#: DeepSpotM runs through ``tile_prediction`` but its output is a
+#: transcriptome, so it is listed with the other spatial-omics models. Keyed
+#: by class name; if this grows, declare the category on the model instead.
+CATEGORY_OVERRIDE = {"DeepSpotM": "H&E → Spatial omics / IHC"}
+
 #: Display order. "Chat" is declared but not yet populated — slide-conditioned
 #: text generation exists as ``TextResponseModelProtocol`` but no model
 #: registers it as its task.
@@ -398,7 +404,7 @@ def collect_models(citations: dict[str, dict]) -> list[dict]:
         params = init_params(cls)
         category_tasks: dict[str, list[str]] = {}
         for t in tasks:
-            category = CATEGORY.get(t)
+            category = CATEGORY_OVERRIDE.get(cls.__name__) or CATEGORY.get(t)
             if category:
                 category_tasks.setdefault(category, []).append(t)
         categories = sorted(category_tasks, key=CATEGORY_ORDER.index)
@@ -498,6 +504,14 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"error: no display category for task(s): {', '.join(uncategorised)} "
             "— add them to CATEGORY and CATEGORY_ORDER",
+            file=sys.stderr,
+        )
+        return 1
+
+    stale = sorted(set(CATEGORY_OVERRIDE) - {m["name"] for m in models})
+    if stale:
+        print(
+            f"error: CATEGORY_OVERRIDE names no published model: {', '.join(stale)}",
             file=sys.stderr,
         )
         return 1

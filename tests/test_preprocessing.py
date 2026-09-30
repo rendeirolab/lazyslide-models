@@ -56,6 +56,8 @@ UPSTREAM = {
     "gigapath-flash": _pil(256, 224, IMAGENET, BICUBIC),
     "virchow": _pil(224, 224, IMAGENET, BICUBIC),  # hub pretrained_cfg
     "virchow2": _pil(224, 224, IMAGENET, BICUBIC),
+    "crisp": _pil(224, 224, IMAGENET, BICUBIC),  # crisp.py get_trans()
+    "crown": _pil(224, 224, IMAGENET),  # test_linear.py; README forgets Normalize
     # Lunit release notes give the stats; resize is unspecified upstream
     "lunit-bt": _pil(224, 224, LUNIT, BICUBIC),
     "lunit-mocov2": _pil(224, 224, LUNIT, BICUBIC),
@@ -71,6 +73,11 @@ UPSTREAM = {
     "omiclip": _pil(224, 224, OPENAI_CLIP, BICUBIC),  # open_clip coca_ViT-L-14
     "biomedclip": _pil(224, 224, OPENAI_CLIP, BICUBIC),  # open_clip hub cfg
     "musk": _pil(384, 384, HALF, BICUBIC),  # IMAGENET_INCEPTION_MEAN/STD
+    "keep": _pil(224, 224, IMAGENET, BICUBIC),  # README transforms
+    # SiglipImageProcessor: squash to 384 x 384, no crop
+    "conceptclip": T.Compose(
+        [T.Resize((384, 384), interpolation=BICUBIC), T.ToTensor(), T.Normalize(*HALF)]
+    ),
     "titan": _pil(448, 448, IMAGENET),  # conch_v1_5.py Resize(BILINEAR)
     "mascaret": _pil(224, 224, HALF),  # README T.Resize(224), config stats
     "phaet": _pil(224, 224, IMAGENET),

@@ -51,7 +51,7 @@ model = [
     "sacremoses>=0.1.1",
     "conch",
     "open-clip-torch>=2.32.0",
-    "cellpose>=4.0.0",
+    "cellpose>=4.2.0",
     "musk",
     "fairscale>=0.4.13",
     "sentencepiece>=0.2.1",

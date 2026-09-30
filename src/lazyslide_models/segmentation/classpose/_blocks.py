@@ -164,11 +164,15 @@ def build_class_transformer(
 ):
     """Build the Classpose network: Cellpose-SAM plus a semantic head.
 
-    Returns a ``cellpose.vit_sam.Transformer`` extended with ``out_class`` and
-    ``W3``. ``forward`` yields ``[B, n_cell_classes + 3, H, W]`` — the semantic
-    logits first, then Cellpose's ``(dY, dX, cellprob)``.
+    Returns Cellpose-SAM's network (``cellpose.vit.CPSAM``, or
+    ``cellpose.vit_sam.Transformer`` before cellpose 4.2) extended with
+    ``out_class`` and ``W3``. ``forward`` yields ``[B, n_cell_classes + 3, H, W]``:
+    the semantic logits first, then Cellpose's ``(dY, dX, cellprob)``.
     """
-    from cellpose.vit_sam import Transformer
+    try:
+        from cellpose.vit import CPSAM as Transformer
+    except ImportError:  # cellpose < 4.2
+        from cellpose.vit_sam import Transformer
 
     class ClassTransformer(Transformer):
         def __init__(self):

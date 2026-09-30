@@ -1,5 +1,7 @@
 from .biomedclip import BiomedCLIP
+from .conceptclip import ConceptCLIP
 from .conch import CONCH, CONCHMadeleine
+from .keep import KEEP
 from .medsiglip import MedSigLip
 from .musk import MUSK
 from .omiclip import OmiCLIP
@@ -11,10 +13,12 @@ from .titan import Titan
 
 __all__ = [
     "CONCH",
+    "KEEP",
     "MUSK",
     "PLIP",
     "BiomedCLIP",
     "CONCHMadeleine",
+    "ConceptCLIP",
     "MedSigLip",
     "OmiCLIP",
     "Prism",

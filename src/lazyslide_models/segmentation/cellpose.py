@@ -17,7 +17,18 @@ from lazyslide_models.base import ModelTask, SegmentationModel, SegmentationOutp
 )
 class Cellpose(SegmentationModel):
     """
-    Only supports cellpose>=4.0.0
+    Cellpose-SAM cell segmentation. Needs cellpose>=4.2.0.
+
+    ``pretrained_model`` picks the weights. The default, ``"cpsam_v2"``, is
+    upstream's default since cellpose 4.2: the same SAM ViT-L as the original
+    ``"cpsam"``, retrained to predict fewer spurious masks in low-contrast
+    regions. ``"cpsam"`` is still available. ``"cpdino"`` and ``"cpdino-vitb"``
+    also need ``facebookresearch/dinov3`` installed and come under the DINOv3
+    licence.
+
+    .. code-block:: python
+
+       >>> zs.seg.cells(wsi, model="cellpose", pretrained_model="cpsam")
 
     If you want to fine-tune the cellpose model, please take a look at the following resources:
 
@@ -36,15 +47,27 @@ class Cellpose(SegmentationModel):
         self,
         diam_mean=None,
         model_path=None,
+        pretrained_model="cpsam_v2",
         **eval_kwargs,
     ):
+        import os
+
         try:
             from cellpose import models
         except ModuleNotFoundError:
-            raise ModuleNotFoundError("Please install cellpose>=4.0.0")
+            raise ModuleNotFoundError("Please install cellpose>=4.2.0")
+
+        weights = model_path if model_path is not None else pretrained_model
+        # cellpose only logs a warning for an unknown name or a missing file,
+        # then quietly runs its default model instead
+        if weights not in models.MODEL_NAMES and not os.path.exists(weights):
+            raise ValueError(
+                f"{weights!r} is neither a file nor a model this cellpose knows "
+                f"({', '.join(models.MODEL_NAMES)}). cpsam_v2 needs cellpose>=4.2.0."
+            )
 
         self.model = models.CellposeModel(
-            pretrained_model=model_path if model_path is not None else "cpsam",
+            pretrained_model=weights,
             diam_mean=diam_mean,
             gpu=True,
         )
@@ -53,7 +76,10 @@ class Cellpose(SegmentationModel):
     def to(self, device):
         import torch
 
-        self.model.device = torch.device(device)
+        device = torch.device(device)
+        # cellpose moves inputs to self.model.device, so the network must follow
+        self.model.device = device
+        self.model.net.to(device)
         return self
 
     def get_transform(self):

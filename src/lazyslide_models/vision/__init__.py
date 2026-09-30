@@ -1,4 +1,6 @@
 from .chief import CHIEF, CHIEFSlideEncoder
+from .crisp import CRISP
+from .crown import CROWN
 from .ctranspath import CTransPath
 from .genbio_pathfm import GenBioPathFM
 from .gigapath import (
@@ -32,6 +34,8 @@ from .waiv import Mascaret, Phaet
 
 __all__ = [
     "CHIEF",
+    "CRISP",
+    "CROWN",
     "GPFM",
     "MSTAR",
     "UNI",

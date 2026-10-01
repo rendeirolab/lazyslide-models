@@ -182,3 +182,7 @@ def test_haralick_matches_skimage() -> None:
     flat = model.predict(np.full((32, 32, 3), 200, np.uint8))
     assert flat["texture_contrast"][0] == 0
     assert flat["texture_energy"][0] == 1
+
+    # More levels than 8-bit gray values would wrap in the uint8 quantised tile
+    with pytest.raises(ValueError, match="levels"):
+        HaralickTexture(levels=257)

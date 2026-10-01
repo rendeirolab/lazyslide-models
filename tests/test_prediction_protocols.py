@@ -181,6 +181,18 @@ def test_cv_feature_rejects_float_tiles(model_name: str) -> None:
         model.predict(np.zeros((1, 8, 8, 3), np.float32))
 
 
+def test_cv_features_reject_an_ambiguous_layout() -> None:
+    """A ``(B, 3, H, 3)`` batch is as much BCHW as BHWC, so neither is guessed."""
+    from lazyslide_models.tile_prediction import Brightness
+
+    with pytest.raises(ValueError, match="BCHW"):
+        Brightness().predict(np.zeros((2, 3, 8, 3), np.uint8))
+    # Unambiguous BCHW still works
+    assert Brightness().predict(np.zeros((2, 3, 8, 8), np.uint8))[
+        "brightness"
+    ].shape == (2,)
+
+
 @pytest.mark.parametrize(
     ("stain", "rgb_from_stain", "target"),
     [

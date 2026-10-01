@@ -36,7 +36,12 @@ def _as_batch(image):
     image = np.asarray(image)
     if image.ndim == 3:
         image = image[None]
-    if image.shape[-1] != 3 and image.shape[1] == 3:  # BCHW
+    if image.shape[1] == 3 and image.shape[-1] == 3:
+        raise ValueError(
+            f"Cannot tell BHWC from BCHW for a batch of shape {image.shape}; "
+            "pass tiles larger than 3 pixels."
+        )
+    if image.shape[1] == 3:  # BCHW
         image = image.transpose(0, 2, 3, 1)
     if image.dtype != np.uint8:
         # cv2 and the uint8 casts below would otherwise return garbage silently
@@ -391,7 +396,7 @@ class HaralickTexture(_CVFeatures):
     angles : list of float
         List of pixel pair angles in radians.
     levels : int
-        Number of gray levels to use in the GLCM.
+        Number of gray levels to use in the GLCM, from 2 to 256.
     """
 
     columns = (
@@ -407,6 +412,9 @@ class HaralickTexture(_CVFeatures):
         self.angles = (
             angles if angles is not None else [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4]
         )
+        if not 2 <= levels <= 256:
+            # 8-bit gray has 256 values, and the quantised tile is uint8
+            raise ValueError(f"levels must be between 2 and 256, got {levels}")
         self.levels = levels
 
     def _calculate_glcm(self, image):

@@ -1,17 +1,22 @@
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 
 import cv2
 import numpy as np
+import torch
+from skimage.color import hdx_from_rgb, hed_from_rgb
 from skimage.util import dtype_limits
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, TilePredictionModel
+from lazyslide_models.base import MarkerMapModel, ModelTask, TilePredictionModel
 
 __all__ = [
     "Brightness",
     "Canny",
+    "ColorDeconvolution",
+    "ColorDeconvolutionMap",
     "Contrast",
     "Entropy",
     "HaralickTexture",
@@ -22,11 +27,29 @@ __all__ = [
 ]
 
 
-def _correct_image_format(image):
-    # Convert from BCHW to HWC format for processing
-    if image.shape[0] == 3:  # CHW format
-        image = np.transpose(image, (1, 2, 0))  # Convert to HWC
-    return image
+def _as_batch(image):
+    """Tiles as a contiguous uint8 NumPy ``[B, H, W, 3]`` batch."""
+    if torch.is_tensor(image):
+        # A runner may have moved the batch to an accelerator: LazySlide does
+        # for a model instance, as opposed to a registry key.
+        image = image.detach().cpu().numpy()
+    image = np.asarray(image)
+    if image.ndim == 3:
+        image = image[None]
+    if image.shape[1] == 3 and image.shape[-1] == 3:
+        raise ValueError(
+            f"Cannot tell BHWC from BCHW for a batch of shape {image.shape}; "
+            "pass tiles larger than 3 pixels."
+        )
+    if image.shape[1] == 3:  # BCHW
+        image = image.transpose(0, 2, 3, 1)
+    if image.dtype != np.uint8:
+        # cv2 and the uint8 casts below would otherwise return garbage silently
+        raise TypeError(
+            f"cv features take uint8 RGB tiles, got {image.dtype}; "
+            "drop any transform that converts them to float."
+        )
+    return np.ascontiguousarray(image)
 
 
 class _CVFeatures(TilePredictionModel, ABC):
@@ -54,11 +77,7 @@ class _CVFeatures(TilePredictionModel, ABC):
         """
 
     def _process_batch(self, images):
-        results = []
-        # Process each image in the batch
-        for image in images:
-            image = _correct_image_format(image)
-            results.append(self._func(image))
+        results = [self._func(image) for image in images]
 
         if isinstance(results[0], dict):
             batch_results = {
@@ -69,11 +88,7 @@ class _CVFeatures(TilePredictionModel, ABC):
             return {self.__class__.__name__.lower(): np.array(results)}
 
     def predict(self, image):
-        image = np.asarray(image)
-        if image.ndim == 3:
-            # Batch it
-            image = np.expand_dims(image, 0)
-        return self._process_batch(image)
+        return self._process_batch(_as_batch(image))
 
 
 class CVCompose(_CVFeatures):
@@ -101,10 +116,7 @@ class CVCompose(_CVFeatures):
         pass
 
     def predict(self, image):
-        image = np.asarray(image)
-        if image.ndim == 3:
-            # Batch it
-            image = np.expand_dims(image, 0)
+        image = _as_batch(image)
 
         results = {}
         for model in self.models:
@@ -120,16 +132,13 @@ class CVCompose(_CVFeatures):
 )
 class SplitRGB(_CVFeatures):
     """
-    Calculate the RGB value of a tile.
-
-    Brightness is calculated as the mean of the pixel values.
+    Calculate the red, green and blue intensity of a tile, on a 0-255 scale.
 
     Parameters
     ----------
     method : str
-        Method to calculate the RGB value. Default is "mean".
-    dim : str
-        Dimension of the image. Default is "xyc".
+        Name of the NumPy reduction applied to each channel, e.g. ``"mean"``,
+        ``"median"`` or ``"std"``. Default is ``"mean"``.
     """
 
     columns = ("red", "green", "blue")
@@ -141,7 +150,11 @@ class SplitRGB(_CVFeatures):
         self.method = method
 
     def _func(self, image):
-        c_int = getattr(image, self.method)(axis=(0, 1))
+        if self.method == "mean":
+            # Same values, ~20x faster than ndarray.mean over a strided uint8 axis
+            c_int = cv2.mean(image)
+        else:
+            c_int = getattr(np, self.method)(image, axis=(0, 1))
         return {"red": c_int[0], "green": c_int[1], "blue": c_int[2]}
 
 
@@ -261,15 +274,15 @@ class Sobel(_CVFeatures):
 @register(
     key="canny",
     task=ModelTask.cv_feature,
-    description="Variance of the Canny edge map",
+    description="Fraction of pixels on a Canny edge",
 )
 class Canny(_CVFeatures):
     """
-    Calculate the canny edge detection score of a tile.
+    Calculate the Canny edge density of a tile.
 
     The Canny edge detector is an edge detection operator that uses a multi-stage
-    algorithm to detect a wide range of edges in images. The score is calculated
-    as the variance of the edge-detected image.
+    algorithm to detect a wide range of edges in images. The score is the
+    fraction of pixels that lie on an edge, between 0 and 1.
 
     The tile can be in shape (H, W, C) for a single image or (B, C, H, W) for a batch of images.
 
@@ -286,29 +299,24 @@ class Canny(_CVFeatures):
         self.high_threshold = high_threshold
 
     def _func(self, image):
-        # Convert to grayscale if the image is in color
         gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        # Apply Canny edge detection
-        edges = cv2.Canny(
-            gray_image.astype(np.uint8), self.low_threshold, self.high_threshold
-        )
-
-        # Calculate variance of the edge-detected image
-        return edges.var()
+        edges = cv2.Canny(gray_image, self.low_threshold, self.high_threshold)
+        return cv2.countNonZero(edges) / edges.size
 
 
 @register(
     key="entropy",
     task=ModelTask.cv_feature,
-    description="Shannon entropy of pixel intensity, a texture-complexity measure",
+    description="Shannon entropy of the gray-level histogram, in bits",
 )
 class Entropy(_CVFeatures):
     """
     Calculate the entropy of a tile.
 
-    Entropy is a statistical measure of randomness that can be used to characterize
-    the texture of an image. Higher entropy indicates more complex textures and
-    potentially more information content.
+    The Shannon entropy, in bits, of the tile's 256-bin gray-level histogram:
+    higher means the intensities are spread over more levels. It depends on the
+    histogram alone, not on where the pixels are, so shuffling a tile leaves it
+    unchanged; for texture, use ``HaralickTexture``.
 
     The tile can be in shape (H, W, C) for a single image or (B, C, H, W) for a batch of images.
     """
@@ -318,7 +326,7 @@ class Entropy(_CVFeatures):
         gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
         # Calculate histogram
-        hist = cv2.calcHist([gray_image.astype(np.uint8)], [0], None, [256], [0, 256])
+        hist = cv2.calcHist([gray_image], [0], None, [256], [0, 256])
 
         # Normalize histogram to get probability distribution
         hist = hist / hist.sum()
@@ -373,6 +381,12 @@ class HaralickTexture(_CVFeatures):
     These features provide information about the texture of an image and are widely
     used in image analysis.
 
+    The co-occurrence matrices of all offsets, each counting only pixel pairs
+    inside the tile, are averaged before the features are computed. As in
+    scikit-image's ``graycoprops``, ``texture_energy`` is the angular second
+    moment (its ``"ASM"``; its ``"energy"`` is the square root). Correlation is
+    0 on a flat tile, where it is undefined.
+
     The tile can be in shape (H, W, C) for a single image or (B, C, H, W) for a batch of images.
 
     Parameters
@@ -382,7 +396,7 @@ class HaralickTexture(_CVFeatures):
     angles : list of float
         List of pixel pair angles in radians.
     levels : int
-        Number of gray levels to use in the GLCM.
+        Number of gray levels to use in the GLCM, from 2 to 256.
     """
 
     columns = (
@@ -398,61 +412,37 @@ class HaralickTexture(_CVFeatures):
         self.angles = (
             angles if angles is not None else [0, np.pi / 4, np.pi / 2, 3 * np.pi / 4]
         )
+        if not 2 <= levels <= 256:
+            # 8-bit gray has 256 values, and the quantised tile is uint8
+            raise ValueError(f"levels must be between 2 and 256, got {levels}")
         self.levels = levels
 
     def _calculate_glcm(self, image):
-        """Calculate the Gray Level Co-occurrence Matrix."""
-        # Quantize the image to reduce the number of intensity values
-        bins = np.linspace(0, 255, self.levels + 1)
-        # digitize puts 255 past the last edge; clip it into the top level
-        quantized = np.clip(np.digitize(image, bins) - 1, 0, self.levels - 1)
+        """Calculate the normalised Gray Level Co-occurrence Matrix per offset."""
+        levels = self.levels
+        # Quantize the image to reduce the number of intensity values;
+        # digitize puts 255 past the last edge, so clip it into the top level
+        bins = np.linspace(0, 255, levels + 1)
+        lut = np.clip(np.digitize(np.arange(256), bins) - 1, 0, levels - 1)
+        quantized = cv2.LUT(image, lut.astype(np.uint8))
+        rows, cols = quantized.shape
 
-        # Calculate GLCM for each distance and angle
-        glcm = np.zeros(
-            (self.levels, self.levels, len(self.distances), len(self.angles))
-        )
-
+        glcm = np.zeros((levels, levels, len(self.distances), len(self.angles)))
         for i, distance in enumerate(self.distances):
             for j, angle in enumerate(self.angles):
-                # Calculate offset
                 dx = round(distance * np.cos(angle))
                 dy = round(distance * np.sin(angle))
-
-                # Create shifted image
-                rows, cols = quantized.shape
-                shifted = np.zeros_like(quantized)
-
-                if dx >= 0:
-                    col_range = range(cols - dx)
-                    shifted_col_range = range(dx, cols)
-                else:
-                    col_range = range(-dx, cols)
-                    shifted_col_range = range(cols + dx)
-
-                if dy >= 0:
-                    row_range = range(rows - dy)
-                    shifted_row_range = range(dy, rows)
-                else:
-                    row_range = range(-dy, rows)
-                    shifted_row_range = range(rows + dy)
-
-                shifted[
-                    shifted_row_range[0] : shifted_row_range[-1] + 1,
-                    shifted_col_range[0] : shifted_col_range[-1] + 1,
-                ] = quantized[
-                    row_range[0] : row_range[-1] + 1, col_range[0] : col_range[-1] + 1
+                # Pairs (q[r, c], q[r - dy, c - dx]) with both pixels in the tile
+                ys, ye = max(dy, 0), rows + min(dy, 0)
+                xs, xe = max(dx, 0), cols + min(dx, 0)
+                pairs = [
+                    quantized[ys:ye, xs:xe],
+                    quantized[ys - dy : ye - dy, xs - dx : xe - dx],
                 ]
-
-                # Calculate co-occurrence matrix
-                for k in range(self.levels):
-                    for level in range(self.levels):
-                        glcm[k, level, i, j] = np.sum(
-                            (quantized == k) & (shifted == level)
-                        )
-
-                # Normalize GLCM
-                if glcm[:, :, i, j].sum() > 0:
-                    glcm[:, :, i, j] /= glcm[:, :, i, j].sum()
+                counts = cv2.calcHist(
+                    pairs, [0, 1], None, [levels, levels], [0, levels, 0, levels]
+                ).astype(np.float64)
+                glcm[:, :, i, j] = counts / counts.sum()
 
         return glcm
 
@@ -505,13 +495,6 @@ class HaralickTexture(_CVFeatures):
     def _func(self, image):
         # Convert to grayscale if the image is in color
         gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        # Ensure image is uint8
-        if gray_image.dtype != np.uint8:
-            gray_image = (
-                (gray_image * 255).astype(np.uint8)
-                if gray_image.max() <= 1
-                else gray_image.astype(np.uint8)
-            )
 
         # Calculate GLCM
         glcm = self._calculate_glcm(gray_image)
@@ -523,3 +506,152 @@ class HaralickTexture(_CVFeatures):
         scores = {f"texture_{k}": v for k, v in features.items()}
 
         return scores
+
+
+#: Stain presets from scikit-image, as ``(RGB-to-stain matrix, stain names)``:
+#: ``hed`` is Ruifrok and Johnston's; ``hdx`` is Landini's hematoxylin and DAB,
+#: with their cross product as the residual.
+# ponytail: scikit-image's other presets (fgx, bex, rbd, ...) are one line each
+_STAINS = {
+    "hed": (hed_from_rgb, ("hematoxylin", "eosin", "dab")),
+    "hdx": (hdx_from_rgb, ("hematoxylin", "dab", "residual")),
+}
+
+#: The optical density ``skimage.color.separate_stains`` gives each uint8 value
+_OD = np.log(np.maximum(np.arange(256) / 255, 1e-6)) / np.log(1e-6)
+
+
+def _unmix(stain):
+    """``(RGB-to-stain matrix, names)`` for a preset or a dict of stain vectors."""
+    if isinstance(stain, str):
+        if stain not in _STAINS:
+            raise ValueError(
+                f"Unknown stain {stain!r}: use one of {list(_STAINS)}, or a dict "
+                "of three {name: RGB optical-density vector} entries."
+            )
+        return _STAINS[stain]
+    if len(stain) != 3:
+        raise ValueError(
+            "Unmixing needs three stain vectors; for two stains, add a residual "
+            "as the third, e.g. np.cross(first, second)."
+        )
+    names, vectors = zip(*stain.items())
+    # The vectors are rows like scikit-image's rgb_from_hed; unmixing inverts them
+    return np.linalg.inv(np.asarray(vectors, dtype=np.float64)), names
+
+
+@register(
+    key="color_deconvolution",
+    task=ModelTask.cv_feature,
+    description=(
+        "Mean amount of each stain in a tile (hematoxylin, eosin, DAB), "
+        "by color deconvolution"
+    ),
+    bib_key="Ruifrok2001-cd",
+    paper_url="https://pubmed.ncbi.nlm.nih.gov/11531144/",
+)
+class ColorDeconvolution(_CVFeatures):
+    """
+    Measure the stains in a tile by color deconvolution.
+
+    Each pixel's optical density is unmixed into the amounts of three stains,
+    given their RGB absorption vectors, and each amount is averaged over the
+    tile. On an IHC slide, ``dab`` measures the chromogen.
+
+    The amounts are in the units of ``skimage.color.separate_stains``, so the
+    default equals ``skimage.color.rgb2hed`` averaged over the tile: a pixel
+    holding amounts ``s`` of stains with RGB vectors ``V`` transmits
+    ``10 ** (-6 * s @ V)`` of the light. Negative amounts are clipped to zero
+    in each pixel.
+
+    An absent stain does not read zero, since real pixels are never exact
+    mixtures of the stain vectors: an H&E slide reads a ``dab`` of about 0.02
+    to 0.05, so compare tiles with each other or with a negative control.
+    White background adds zero, so a tile with less tissue has a lower mean;
+    for statistics over the tissue alone, use ``ColorDeconvolutionMap``. The
+    presets are published stain vectors. Stain colors vary with the staining
+    batch and the scanner, so pass measured vectors when the numbers matter.
+
+    .. code-block:: python
+
+       >>> zs.tl.tile_prediction(wsi, "color_deconvolution")
+       >>> tiles = wsi["tiles"]
+       >>> tiles[tiles["dab"] > tiles["dab"].quantile(0.9)]
+
+    Parameters
+    ----------
+    stain : str or dict, default: "hed"
+        The stains to unmix. ``"hed"`` gives ``hematoxylin``, ``eosin`` and
+        ``dab``; ``"hdx"`` gives ``hematoxylin``, ``dab`` and a ``residual``,
+        for IHC without eosin. A dict of exactly three ``{name: vector}``
+        entries unmixes custom stains: each vector is the stain's optical
+        density in red, green and blue, like a row of
+        ``skimage.color.rgb_from_hed``. The names become the columns.
+    """
+
+    columns = ("hematoxylin", "eosin", "dab")
+
+    def __init__(self, stain: str | dict = "hed"):
+        self._unmixing, self.columns = _unmix(stain)
+
+    def _func(self, image):
+        # separate_stains through lookups: per pixel, od @ unmixing (~8x faster)
+        stains = cv2.transform(cv2.LUT(image, _OD), self._unmixing.T)
+        return dict(zip(self.columns, cv2.mean(np.maximum(stains, 0))[:3]))
+
+
+class _Unmix(torch.nn.Module):
+    """``skimage.color.separate_stains`` as tensor ops, so it runs on any device."""
+
+    def __init__(self, unmixing):
+        super().__init__()
+        self.register_buffer("unmixing", torch.as_tensor(unmixing, dtype=torch.float32))
+
+    def forward(self, image):
+        # image: [B, 3, H, W] in [0, 1]. Optical density (black clamped so its
+        # log is finite), then unmixing, with negative amounts clipped
+        od = torch.log(image.clamp_min(1e-6)) / math.log(1e-6)
+        return torch.einsum("bchw,cs->bshw", od, self.unmixing).clamp_min(0)
+
+
+@register(
+    key="color_deconvolution_map",
+    task=ModelTask.cv_feature,
+    description="Per-pixel amount of each stain, by color deconvolution",
+    bib_key="Ruifrok2001-cd",
+    paper_url="https://pubmed.ncbi.nlm.nih.gov/11531144/",
+)
+class ColorDeconvolutionMap(MarkerMapModel):
+    """
+    Map the stains of a tile by color deconvolution, one value per pixel.
+
+    The per-pixel amounts that ``ColorDeconvolution`` averages over a tile, in
+    the same units. Run it with ``virtual_stain`` to store the stains as one
+    image, a channel each, as float32 at the tile resolution: use a coarse tile
+    set for a whole-slide map. Parts of the slide no tile covers stay zero.
+
+    .. code-block:: python
+
+       >>> zs.tl.virtual_stain(wsi, "color_deconvolution_map", image_key="stains")
+       >>> wsi.images["stains"]
+
+    Parameters
+    ----------
+    stain : str or dict, default: "hed"
+        The stains to unmix, as for ``ColorDeconvolution``.
+    """
+
+    channel_names = ("hematoxylin", "eosin", "dab")
+
+    def __init__(self, stain: str | dict = "hed"):
+        unmixing, self.channel_names = _unmix(stain)
+        self.model = _Unmix(unmixing).eval()
+
+    def get_transform(self):
+        from torchvision.transforms.v2 import Compose, ToDtype, ToImage
+
+        return Compose([ToImage(), ToDtype(torch.float32, scale=True)])
+
+    @torch.inference_mode()
+    def predict(self, image):
+        return self.model(image)

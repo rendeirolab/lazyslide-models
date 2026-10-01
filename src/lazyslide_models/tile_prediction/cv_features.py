@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 import cv2
 import numpy as np
+import torch
 from skimage.util import dtype_limits
 
 from lazyslide_models._model_registry import register
@@ -22,11 +23,24 @@ __all__ = [
 ]
 
 
-def _correct_image_format(image):
-    # Convert from BCHW to HWC format for processing
-    if image.shape[0] == 3:  # CHW format
-        image = np.transpose(image, (1, 2, 0))  # Convert to HWC
-    return image
+def _as_batch(image):
+    """Tiles as a contiguous uint8 NumPy ``[B, H, W, 3]`` batch."""
+    if torch.is_tensor(image):
+        # A runner may have moved the batch to an accelerator: LazySlide does
+        # for a model instance, as opposed to a registry key.
+        image = image.detach().cpu().numpy()
+    image = np.asarray(image)
+    if image.ndim == 3:
+        image = image[None]
+    if image.shape[-1] != 3 and image.shape[1] == 3:  # BCHW
+        image = image.transpose(0, 2, 3, 1)
+    if image.dtype != np.uint8:
+        # cv2 and the uint8 casts below would otherwise return garbage silently
+        raise TypeError(
+            f"cv features take uint8 RGB tiles, got {image.dtype}; "
+            "drop any transform that converts them to float."
+        )
+    return np.ascontiguousarray(image)
 
 
 class _CVFeatures(TilePredictionModel, ABC):
@@ -54,11 +68,7 @@ class _CVFeatures(TilePredictionModel, ABC):
         """
 
     def _process_batch(self, images):
-        results = []
-        # Process each image in the batch
-        for image in images:
-            image = _correct_image_format(image)
-            results.append(self._func(image))
+        results = [self._func(image) for image in images]
 
         if isinstance(results[0], dict):
             batch_results = {
@@ -69,11 +79,7 @@ class _CVFeatures(TilePredictionModel, ABC):
             return {self.__class__.__name__.lower(): np.array(results)}
 
     def predict(self, image):
-        image = np.asarray(image)
-        if image.ndim == 3:
-            # Batch it
-            image = np.expand_dims(image, 0)
-        return self._process_batch(image)
+        return self._process_batch(_as_batch(image))
 
 
 class CVCompose(_CVFeatures):
@@ -101,10 +107,7 @@ class CVCompose(_CVFeatures):
         pass
 
     def predict(self, image):
-        image = np.asarray(image)
-        if image.ndim == 3:
-            # Batch it
-            image = np.expand_dims(image, 0)
+        image = _as_batch(image)
 
         results = {}
         for model in self.models:
@@ -120,16 +123,13 @@ class CVCompose(_CVFeatures):
 )
 class SplitRGB(_CVFeatures):
     """
-    Calculate the RGB value of a tile.
-
-    Brightness is calculated as the mean of the pixel values.
+    Calculate the red, green and blue intensity of a tile, on a 0-255 scale.
 
     Parameters
     ----------
     method : str
-        Method to calculate the RGB value. Default is "mean".
-    dim : str
-        Dimension of the image. Default is "xyc".
+        Name of the NumPy reduction applied to each channel, e.g. ``"mean"``,
+        ``"median"`` or ``"std"``. Default is ``"mean"``.
     """
 
     columns = ("red", "green", "blue")
@@ -141,7 +141,11 @@ class SplitRGB(_CVFeatures):
         self.method = method
 
     def _func(self, image):
-        c_int = getattr(image, self.method)(axis=(0, 1))
+        if self.method == "mean":
+            # Same values, ~20x faster than ndarray.mean over a strided uint8 axis
+            c_int = cv2.mean(image)
+        else:
+            c_int = getattr(np, self.method)(image, axis=(0, 1))
         return {"red": c_int[0], "green": c_int[1], "blue": c_int[2]}
 
 
@@ -261,15 +265,15 @@ class Sobel(_CVFeatures):
 @register(
     key="canny",
     task=ModelTask.cv_feature,
-    description="Variance of the Canny edge map",
+    description="Fraction of pixels on a Canny edge",
 )
 class Canny(_CVFeatures):
     """
-    Calculate the canny edge detection score of a tile.
+    Calculate the Canny edge density of a tile.
 
     The Canny edge detector is an edge detection operator that uses a multi-stage
-    algorithm to detect a wide range of edges in images. The score is calculated
-    as the variance of the edge-detected image.
+    algorithm to detect a wide range of edges in images. The score is the
+    fraction of pixels that lie on an edge, between 0 and 1.
 
     The tile can be in shape (H, W, C) for a single image or (B, C, H, W) for a batch of images.
 
@@ -286,29 +290,24 @@ class Canny(_CVFeatures):
         self.high_threshold = high_threshold
 
     def _func(self, image):
-        # Convert to grayscale if the image is in color
         gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        # Apply Canny edge detection
-        edges = cv2.Canny(
-            gray_image.astype(np.uint8), self.low_threshold, self.high_threshold
-        )
-
-        # Calculate variance of the edge-detected image
-        return edges.var()
+        edges = cv2.Canny(gray_image, self.low_threshold, self.high_threshold)
+        return cv2.countNonZero(edges) / edges.size
 
 
 @register(
     key="entropy",
     task=ModelTask.cv_feature,
-    description="Shannon entropy of pixel intensity, a texture-complexity measure",
+    description="Shannon entropy of the gray-level histogram, in bits",
 )
 class Entropy(_CVFeatures):
     """
     Calculate the entropy of a tile.
 
-    Entropy is a statistical measure of randomness that can be used to characterize
-    the texture of an image. Higher entropy indicates more complex textures and
-    potentially more information content.
+    The Shannon entropy, in bits, of the tile's 256-bin gray-level histogram:
+    higher means the intensities are spread over more levels. It depends on the
+    histogram alone, not on where the pixels are, so shuffling a tile leaves it
+    unchanged; for texture, use ``HaralickTexture``.
 
     The tile can be in shape (H, W, C) for a single image or (B, C, H, W) for a batch of images.
     """
@@ -318,7 +317,7 @@ class Entropy(_CVFeatures):
         gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
         # Calculate histogram
-        hist = cv2.calcHist([gray_image.astype(np.uint8)], [0], None, [256], [0, 256])
+        hist = cv2.calcHist([gray_image], [0], None, [256], [0, 256])
 
         # Normalize histogram to get probability distribution
         hist = hist / hist.sum()
@@ -373,6 +372,12 @@ class HaralickTexture(_CVFeatures):
     These features provide information about the texture of an image and are widely
     used in image analysis.
 
+    The co-occurrence matrices of all offsets, each counting only pixel pairs
+    inside the tile, are averaged before the features are computed. As in
+    scikit-image's ``graycoprops``, ``texture_energy`` is the angular second
+    moment (its ``"ASM"``; its ``"energy"`` is the square root). Correlation is
+    0 on a flat tile, where it is undefined.
+
     The tile can be in shape (H, W, C) for a single image or (B, C, H, W) for a batch of images.
 
     Parameters
@@ -401,58 +406,31 @@ class HaralickTexture(_CVFeatures):
         self.levels = levels
 
     def _calculate_glcm(self, image):
-        """Calculate the Gray Level Co-occurrence Matrix."""
-        # Quantize the image to reduce the number of intensity values
-        bins = np.linspace(0, 255, self.levels + 1)
-        # digitize puts 255 past the last edge; clip it into the top level
-        quantized = np.clip(np.digitize(image, bins) - 1, 0, self.levels - 1)
+        """Calculate the normalised Gray Level Co-occurrence Matrix per offset."""
+        levels = self.levels
+        # Quantize the image to reduce the number of intensity values;
+        # digitize puts 255 past the last edge, so clip it into the top level
+        bins = np.linspace(0, 255, levels + 1)
+        lut = np.clip(np.digitize(np.arange(256), bins) - 1, 0, levels - 1)
+        quantized = cv2.LUT(image, lut.astype(np.uint8))
+        rows, cols = quantized.shape
 
-        # Calculate GLCM for each distance and angle
-        glcm = np.zeros(
-            (self.levels, self.levels, len(self.distances), len(self.angles))
-        )
-
+        glcm = np.zeros((levels, levels, len(self.distances), len(self.angles)))
         for i, distance in enumerate(self.distances):
             for j, angle in enumerate(self.angles):
-                # Calculate offset
                 dx = round(distance * np.cos(angle))
                 dy = round(distance * np.sin(angle))
-
-                # Create shifted image
-                rows, cols = quantized.shape
-                shifted = np.zeros_like(quantized)
-
-                if dx >= 0:
-                    col_range = range(cols - dx)
-                    shifted_col_range = range(dx, cols)
-                else:
-                    col_range = range(-dx, cols)
-                    shifted_col_range = range(cols + dx)
-
-                if dy >= 0:
-                    row_range = range(rows - dy)
-                    shifted_row_range = range(dy, rows)
-                else:
-                    row_range = range(-dy, rows)
-                    shifted_row_range = range(rows + dy)
-
-                shifted[
-                    shifted_row_range[0] : shifted_row_range[-1] + 1,
-                    shifted_col_range[0] : shifted_col_range[-1] + 1,
-                ] = quantized[
-                    row_range[0] : row_range[-1] + 1, col_range[0] : col_range[-1] + 1
+                # Pairs (q[r, c], q[r - dy, c - dx]) with both pixels in the tile
+                ys, ye = max(dy, 0), rows + min(dy, 0)
+                xs, xe = max(dx, 0), cols + min(dx, 0)
+                pairs = [
+                    quantized[ys:ye, xs:xe],
+                    quantized[ys - dy : ye - dy, xs - dx : xe - dx],
                 ]
-
-                # Calculate co-occurrence matrix
-                for k in range(self.levels):
-                    for level in range(self.levels):
-                        glcm[k, level, i, j] = np.sum(
-                            (quantized == k) & (shifted == level)
-                        )
-
-                # Normalize GLCM
-                if glcm[:, :, i, j].sum() > 0:
-                    glcm[:, :, i, j] /= glcm[:, :, i, j].sum()
+                counts = cv2.calcHist(
+                    pairs, [0, 1], None, [levels, levels], [0, levels, 0, levels]
+                ).astype(np.float64)
+                glcm[:, :, i, j] = counts / counts.sum()
 
         return glcm
 
@@ -505,13 +483,6 @@ class HaralickTexture(_CVFeatures):
     def _func(self, image):
         # Convert to grayscale if the image is in color
         gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        # Ensure image is uint8
-        if gray_image.dtype != np.uint8:
-            gray_image = (
-                (gray_image * 255).astype(np.uint8)
-                if gray_image.max() <= 1
-                else gray_image.astype(np.uint8)
-            )
 
         # Calculate GLCM
         glcm = self._calculate_glcm(gray_image)

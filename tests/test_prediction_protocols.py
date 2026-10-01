@@ -169,6 +169,14 @@ def test_cv_compose_reports_the_columns_of_what_it_composes() -> None:
     assert tuple(model.predict(image)) == model.columns
 
 
+@pytest.mark.parametrize("model_name", CV_FEATURE_MODELS)
+def test_cv_feature_rejects_float_tiles(model_name: str) -> None:
+    """cv2 and the uint8 casts would read a float tile as garbage, silently."""
+    model = MODEL_REGISTRY[model_name]()
+    with pytest.raises(TypeError, match="uint8"):
+        model.predict(np.zeros((1, 8, 8, 3), np.float32))
+
+
 # ── VirtualStainModel has no registered occupant yet ──────────────────────────
 # DTR and USIGAN are the intended first users. Until one lands, the classifying
 # logic above would go unexercised for this branch, so cover it synthetically.

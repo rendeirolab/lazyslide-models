@@ -149,3 +149,36 @@ def test_haralick_keeps_white_pixels() -> None:
     out = HaralickTexture().predict(white)
     for col in HaralickTexture.columns:
         np.testing.assert_allclose(out[col], ref[col], err_msg=col)
+
+
+def test_haralick_matches_skimage() -> None:
+    import cv2
+    from skimage.feature import graycomatrix, graycoprops
+
+    from lazyslide_models.tile_prediction.cv_features import HaralickTexture
+
+    # Only pixel pairs inside the tile count, so the GLCM is scikit-image's
+    model = HaralickTexture()
+    tiles = np.random.default_rng(0).integers(0, 256, (3, 48, 40, 3), dtype=np.uint8)
+    out = model.predict(tiles)
+    for k, tile in enumerate(tiles):
+        gray = cv2.cvtColor(tile, cv2.COLOR_RGB2GRAY)
+        glcm = graycomatrix(gray // 32, [1], model.angles, levels=8, normed=True)
+        mean = glcm.mean(axis=(2, 3), keepdims=True)
+        p = mean[mean > 0]
+        ref = {
+            "texture_energy": graycoprops(mean, "ASM")[0, 0],
+            "texture_contrast": graycoprops(mean, "contrast")[0, 0],
+            "texture_homogeneity": graycoprops(mean, "homogeneity")[0, 0],
+            "texture_correlation": graycoprops(mean, "correlation")[0, 0],
+            "texture_entropy": -np.sum(p * np.log2(p)),
+        }
+        for col, want in ref.items():
+            np.testing.assert_allclose(
+                out[col][k], want, rtol=1e-10, atol=1e-12, err_msg=col
+            )
+
+    # A flat tile has no texture; the tile border must not read as contrast
+    flat = model.predict(np.full((32, 32, 3), 200, np.uint8))
+    assert flat["texture_contrast"][0] == 0
+    assert flat["texture_energy"][0] == 1

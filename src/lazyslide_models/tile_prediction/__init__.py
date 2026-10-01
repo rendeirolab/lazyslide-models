@@ -1,6 +1,8 @@
 from .cv_features import (
     Brightness,
     Canny,
+    ColorDeconvolution,
+    ColorDeconvolutionMap,
     Contrast,
     Entropy,
     HaralickTexture,
@@ -20,6 +22,9 @@ from .spider import (
     SpiderThorax,
 )
 
+# Tile-level models only: tile_prediction runs these on the CPU for their
+# columns. A dense cv_feature such as ColorDeconvolutionMap goes through
+# virtual_stain instead.
 CV_FEATURES = {
     "split_rgb": SplitRGB,
     "brightness": Brightness,
@@ -30,6 +35,7 @@ CV_FEATURES = {
     "entropy": Entropy,
     "saturation": Saturation,
     "haralick_texture": HaralickTexture,
+    "color_deconvolution": ColorDeconvolution,
 }
 
 
@@ -37,6 +43,8 @@ __all__ = [
     "CV_FEATURES",
     "Brightness",
     "Canny",
+    "ColorDeconvolution",
+    "ColorDeconvolutionMap",
     "Contrast",
     "DeepSpotM",
     "Entropy",

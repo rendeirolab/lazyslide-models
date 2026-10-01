@@ -1,8 +1,8 @@
 """Tests for the three prediction model classes.
 
 None of these load weights. They read class attributes only, so the whole file
-runs for every model on a selective CI run. The nine ``cv_feature`` models are
-pure OpenCV/NumPy, so their declared ``columns`` are checked against a real
+runs for every model on a selective CI run. The tile-level ``cv_feature`` models
+are pure OpenCV/NumPy, so their declared ``columns`` are checked against a real
 ``predict`` call rather than trusted.
 
 There is deliberately no check that a model's tensor actually has as many
@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+import torch
+from skimage.color import combine_stains, rgb_from_hdx, rgb_from_hed, separate_stains
 
 from lazyslide_models import MODEL_REGISTRY
 from lazyslide_models.base import (
@@ -37,10 +39,12 @@ PREDICTION_MODELS = sorted(
     if getattr(cls, "task", None) in PREDICTION_TASKS
 )
 
+#: The tile-level ones: a dense cv_feature returns an image, not columns.
 CV_FEATURE_MODELS = sorted(
     key
     for key, cls in MODEL_REGISTRY.items()
     if getattr(cls, "task", None) is ModelTask.cv_feature
+    and issubclass(cls, TilePredictionModel)
 )
 
 CONCRETE = (TilePredictionModel, MarkerMapModel, VirtualStainModel)
@@ -175,6 +179,56 @@ def test_cv_feature_rejects_float_tiles(model_name: str) -> None:
     model = MODEL_REGISTRY[model_name]()
     with pytest.raises(TypeError, match="uint8"):
         model.predict(np.zeros((1, 8, 8, 3), np.float32))
+
+
+@pytest.mark.parametrize(
+    ("stain", "rgb_from_stain", "target"),
+    [
+        ("hed", rgb_from_hed, "dab"),
+        ("hdx", rgb_from_hdx, "dab"),
+        # Names and their order come from the dict, so they need not be H, E, DAB
+        (
+            {
+                "brown": rgb_from_hed[2],
+                "blue": rgb_from_hed[0],
+                "pink": rgb_from_hed[1],
+            },
+            rgb_from_hed[[2, 0, 1]],
+            "brown",
+        ),
+    ],
+    # Not bare stain names: conftest reads a bracketed id as a model name
+    ids=["preset-hed", "preset-hdx", "custom-dict"],
+)
+def test_color_deconvolution_recovers_a_known_stain(
+    stain, rgb_from_stain, target
+) -> None:
+    """A tile of one stain at a known amount gives that amount back, and the
+    tile model, the dense model and scikit-image agree on it."""
+    from lazyslide_models.tile_prediction import (
+        ColorDeconvolution,
+        ColorDeconvolutionMap,
+    )
+
+    model, dense = ColorDeconvolution(stain), ColorDeconvolutionMap(stain)
+    assert dense.channel_names == model.columns
+
+    amounts = np.array([0.03, 0.08])
+    stains = np.zeros((2, 32, 32, 3))
+    stains[..., model.columns.index(target)] = amounts[:, None, None]
+    tiles = np.round(combine_stains(stains, rgb_from_stain) * 255).astype(np.uint8)
+
+    out = model.predict(tiles)
+    for name, got in out.items():
+        # 8-bit pixels are all the round trip loses
+        want = amounts if name == target else 0
+        np.testing.assert_allclose(got, want, atol=2e-3, err_msg=name)
+
+    ref = separate_stains(tiles, np.linalg.inv(rgb_from_stain)).mean(axis=(1, 2))
+    np.testing.assert_allclose(np.stack(list(out.values()), axis=1), ref, atol=1e-9)
+
+    per_pixel = dense.predict(torch.stack([dense.get_transform()(t) for t in tiles]))
+    np.testing.assert_allclose(per_pixel.mean(dim=(2, 3)).numpy(), ref, atol=1e-6)
 
 
 # ── VirtualStainModel has no registered occupant yet ──────────────────────────

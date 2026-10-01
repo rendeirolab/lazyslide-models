@@ -1,18 +1,22 @@
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 
 import cv2
 import numpy as np
 import torch
+from skimage.color import hdx_from_rgb, hed_from_rgb
 from skimage.util import dtype_limits
 
 from lazyslide_models._model_registry import register
-from lazyslide_models.base import ModelTask, TilePredictionModel
+from lazyslide_models.base import MarkerMapModel, ModelTask, TilePredictionModel
 
 __all__ = [
     "Brightness",
     "Canny",
+    "ColorDeconvolution",
+    "ColorDeconvolutionMap",
     "Contrast",
     "Entropy",
     "HaralickTexture",
@@ -494,3 +498,152 @@ class HaralickTexture(_CVFeatures):
         scores = {f"texture_{k}": v for k, v in features.items()}
 
         return scores
+
+
+#: Stain presets from scikit-image, as ``(RGB-to-stain matrix, stain names)``:
+#: ``hed`` is Ruifrok and Johnston's; ``hdx`` is Landini's hematoxylin and DAB,
+#: with their cross product as the residual.
+# ponytail: scikit-image's other presets (fgx, bex, rbd, ...) are one line each
+_STAINS = {
+    "hed": (hed_from_rgb, ("hematoxylin", "eosin", "dab")),
+    "hdx": (hdx_from_rgb, ("hematoxylin", "dab", "residual")),
+}
+
+#: The optical density ``skimage.color.separate_stains`` gives each uint8 value
+_OD = np.log(np.maximum(np.arange(256) / 255, 1e-6)) / np.log(1e-6)
+
+
+def _unmix(stain):
+    """``(RGB-to-stain matrix, names)`` for a preset or a dict of stain vectors."""
+    if isinstance(stain, str):
+        if stain not in _STAINS:
+            raise ValueError(
+                f"Unknown stain {stain!r}: use one of {list(_STAINS)}, or a dict "
+                "of three {name: RGB optical-density vector} entries."
+            )
+        return _STAINS[stain]
+    if len(stain) != 3:
+        raise ValueError(
+            "Unmixing needs three stain vectors; for two stains, add a residual "
+            "as the third, e.g. np.cross(first, second)."
+        )
+    names, vectors = zip(*stain.items())
+    # The vectors are rows like scikit-image's rgb_from_hed; unmixing inverts them
+    return np.linalg.inv(np.asarray(vectors, dtype=np.float64)), names
+
+
+@register(
+    key="color_deconvolution",
+    task=ModelTask.cv_feature,
+    description=(
+        "Mean amount of each stain in a tile (hematoxylin, eosin, DAB), "
+        "by color deconvolution"
+    ),
+    bib_key="Ruifrok2001-cd",
+    paper_url="https://pubmed.ncbi.nlm.nih.gov/11531144/",
+)
+class ColorDeconvolution(_CVFeatures):
+    """
+    Measure the stains in a tile by color deconvolution.
+
+    Each pixel's optical density is unmixed into the amounts of three stains,
+    given their RGB absorption vectors, and each amount is averaged over the
+    tile. On an IHC slide, ``dab`` measures the chromogen.
+
+    The amounts are in the units of ``skimage.color.separate_stains``, so the
+    default equals ``skimage.color.rgb2hed`` averaged over the tile: a pixel
+    holding amounts ``s`` of stains with RGB vectors ``V`` transmits
+    ``10 ** (-6 * s @ V)`` of the light. Negative amounts are clipped to zero
+    in each pixel.
+
+    An absent stain does not read zero, since real pixels are never exact
+    mixtures of the stain vectors: an H&E slide reads a ``dab`` of about 0.02
+    to 0.05, so compare tiles with each other or with a negative control.
+    White background adds zero, so a tile with less tissue has a lower mean;
+    for statistics over the tissue alone, use ``ColorDeconvolutionMap``. The
+    presets are published stain vectors. Stain colors vary with the staining
+    batch and the scanner, so pass measured vectors when the numbers matter.
+
+    .. code-block:: python
+
+       >>> zs.tl.tile_prediction(wsi, "color_deconvolution")
+       >>> tiles = wsi["tiles"]
+       >>> tiles[tiles["dab"] > tiles["dab"].quantile(0.9)]
+
+    Parameters
+    ----------
+    stain : str or dict, default: "hed"
+        The stains to unmix. ``"hed"`` gives ``hematoxylin``, ``eosin`` and
+        ``dab``; ``"hdx"`` gives ``hematoxylin``, ``dab`` and a ``residual``,
+        for IHC without eosin. A dict of exactly three ``{name: vector}``
+        entries unmixes custom stains: each vector is the stain's optical
+        density in red, green and blue, like a row of
+        ``skimage.color.rgb_from_hed``. The names become the columns.
+    """
+
+    columns = ("hematoxylin", "eosin", "dab")
+
+    def __init__(self, stain: str | dict = "hed"):
+        self._unmixing, self.columns = _unmix(stain)
+
+    def _func(self, image):
+        # separate_stains through lookups: per pixel, od @ unmixing (~8x faster)
+        stains = cv2.transform(cv2.LUT(image, _OD), self._unmixing.T)
+        return dict(zip(self.columns, cv2.mean(np.maximum(stains, 0))[:3]))
+
+
+class _Unmix(torch.nn.Module):
+    """``skimage.color.separate_stains`` as tensor ops, so it runs on any device."""
+
+    def __init__(self, unmixing):
+        super().__init__()
+        self.register_buffer("unmixing", torch.as_tensor(unmixing, dtype=torch.float32))
+
+    def forward(self, image):
+        # image: [B, 3, H, W] in [0, 1]. Optical density (black clamped so its
+        # log is finite), then unmixing, with negative amounts clipped
+        od = torch.log(image.clamp_min(1e-6)) / math.log(1e-6)
+        return torch.einsum("bchw,cs->bshw", od, self.unmixing).clamp_min(0)
+
+
+@register(
+    key="color_deconvolution_map",
+    task=ModelTask.cv_feature,
+    description="Per-pixel amount of each stain, by color deconvolution",
+    bib_key="Ruifrok2001-cd",
+    paper_url="https://pubmed.ncbi.nlm.nih.gov/11531144/",
+)
+class ColorDeconvolutionMap(MarkerMapModel):
+    """
+    Map the stains of a tile by color deconvolution, one value per pixel.
+
+    The per-pixel amounts that ``ColorDeconvolution`` averages over a tile, in
+    the same units. Run it with ``virtual_stain`` to store the stains as one
+    image, a channel each, as float32 at the tile resolution: use a coarse tile
+    set for a whole-slide map. Parts of the slide no tile covers stay zero.
+
+    .. code-block:: python
+
+       >>> zs.tl.virtual_stain(wsi, "color_deconvolution_map", image_key="stains")
+       >>> wsi.images["stains"]
+
+    Parameters
+    ----------
+    stain : str or dict, default: "hed"
+        The stains to unmix, as for ``ColorDeconvolution``.
+    """
+
+    channel_names = ("hematoxylin", "eosin", "dab")
+
+    def __init__(self, stain: str | dict = "hed"):
+        unmixing, self.channel_names = _unmix(stain)
+        self.model = _Unmix(unmixing).eval()
+
+    def get_transform(self):
+        from torchvision.transforms.v2 import Compose, ToDtype, ToImage
+
+        return Compose([ToImage(), ToDtype(torch.float32, scale=True)])
+
+    @torch.inference_mode()
+    def predict(self, image):
+        return self.model(image)

@@ -68,7 +68,8 @@ def hf_access(name: str):
             f"You don't have access to {name}. Please request access to the model on HuggingFace. "
             "After access granted, please login to HuggingFace with huggingface-cli on this machine "
             "with a token that has access to this model. "
-            "You may also pass token as an argument in LazySlide, however, this is not recommended."
+            "You may also pass token as an argument in LazySlide, however, this is not recommended.",
+            response=e.response,
         ) from e
 
 

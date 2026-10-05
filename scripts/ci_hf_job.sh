@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Payload for Hugging Face Jobs (issue #20). GitHub Actions and a laptop
-# both launch this with:
-#   hf jobs run ... IMAGE bash -c "$(cat scripts/ci_hf_job.sh)"
+# both launch this in the RendeiroLab namespace, so the Job runs and is
+# billed under the org, not a personal account:
+#   hf jobs run --namespace RendeiroLab ... IMAGE bash -c "$(cat scripts/ci_hf_job.sh)"
 #
 # Required env:
 #   CI_SHA           git commit to test

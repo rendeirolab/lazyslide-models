@@ -1,10 +1,11 @@
+import warnings
 from importlib import import_module
 from importlib.util import find_spec
 
 import torch
 
 from lazyslide_models._model_registry import register
-from lazyslide_models._utils import hf_access
+from lazyslide_models._utils import find_stack_level, hf_access
 from lazyslide_models.base import ImageGenerationModel, ModelTask
 
 
@@ -36,6 +37,18 @@ class CytoSyn(ImageGenerationModel):
                 trust_remote_code=True,
                 torch_dtype=torch.float32,
             )
+
+    def to(self, device):
+        # Owkin's remote pipeline and scheduler sample in float64 on the
+        # pipeline's device, and MPS has no float64.
+        if torch.device(device).type == "mps":
+            warnings.warn(
+                "CytoSyn samples in float64, which MPS does not support. "
+                "Running CytoSyn on CPU instead.",
+                stacklevel=find_stack_level(),
+            )
+            device = "cpu"
+        return super().to(device)
 
     def generate(self, *args, **kwargs):
         opts = {

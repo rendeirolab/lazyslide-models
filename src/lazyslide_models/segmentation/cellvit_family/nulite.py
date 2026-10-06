@@ -106,7 +106,7 @@ class NuLite(SegmentationModel):
 
     @classmethod
     def check_input_tile(cls, tile_spec) -> bool:
-        if tile_spec.mpp != 0.5 or tile_spec.mpp != 0.25:
+        if tile_spec.mpp not in (0.5, 0.25):
             warnings.warn(
                 f"To optimize the performance of NuLite model, "
                 f"the tiles should be created at the mpp=0.5 or 0.25. "
